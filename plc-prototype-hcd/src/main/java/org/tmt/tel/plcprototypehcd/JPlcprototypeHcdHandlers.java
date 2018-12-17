@@ -91,8 +91,7 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
 
                 // code for read goes here
 
-                //String value = readTagItemValue("Scott_R", "myRealValue");
-                String value = "8.987";
+                String value = readTagItemValue("Scott_R", "myRealValue");
 
                 Key<Double> basePosKey = JKeyType.DoubleKey().make("basePos");
 
@@ -100,27 +99,26 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
 
                 Result result = new Result("PlcHcd").add(basePosParam);
 
-                cswCtx.commandResponseManager().addOrUpdateCommand(new CommandResponse.CompletedWithResult(controlCommand.runId(), result));
+                return new CommandResponse.CompletedWithResult(controlCommand.runId(), result);
 
-                break;
 
             case "update":
                 log.debug("handling update command: " + controlCommand);
 
-                // code for read goes here
+                // code for write goes here
 
-                cswCtx.commandResponseManager().addOrUpdateCommand(new CommandResponse.Completed(controlCommand.runId()));
+                return new CommandResponse.Completed(controlCommand.runId());
 
-                break;
 
             default:
                 log.error("unhandled message in onSubmit: " + controlCommand);
                 // maintain actor state
+                return new CommandResponse.Error(controlCommand.runId(), "unhandled message type");
 
         }
 
 
-        return new CommandResponse.Completed(controlCommand.runId());
+
     }
 
     @Override

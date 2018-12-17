@@ -79,7 +79,7 @@ public class JPlcprototypeAssemblyHandlers extends JComponentHandlers {
                                         if (response instanceof CommandResponse.CompletedWithResult) {
                                             //do something with completed result
 
-                                            System.out.println("hcd command completed!");
+                                            System.out.println("hcd command completed!  Result = " + ((CommandResponse.CompletedWithResult) response).result());
 
 
                                         } else {
