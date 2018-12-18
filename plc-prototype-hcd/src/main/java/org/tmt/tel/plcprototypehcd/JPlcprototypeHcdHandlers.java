@@ -56,7 +56,7 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
     return CompletableFuture.runAsync(() -> {
 
         log.info("Initializing ABPlcioMaster...");
-        master = new ABPlcioMaster();
+        //master = new ABPlcioMaster();
         log.info("Completed...");
 
 
@@ -91,7 +91,8 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
 
                 // code for read goes here
 
-                String value = readTagItemValue("Scott_R", "myRealValue");
+                String value = "test";
+                //String value = readTagItemValue("Scott_R", "myRealValue");
 
                 Key<Double> basePosKey = JKeyType.DoubleKey().make("basePos");
 
