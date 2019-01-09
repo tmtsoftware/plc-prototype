@@ -62,7 +62,7 @@ public class CommandClient {
     }
 
 
-    private Connection.AkkaConnection assemblyConnection = new Connection.AkkaConnection(new ComponentId("PlcprototypeAssembly", Assembly));
+    private Connection.AkkaConnection assemblyConnection = new Connection.AkkaConnection(new ComponentId("JPlcprototypeAssembly", Assembly));
 
 
 
@@ -77,7 +77,7 @@ public class CommandClient {
 
     private Optional<ICommandService> getAssemblyBlocking() throws Exception {
 
-        Duration waitForResolveLimit = Duration.ofSeconds(30);
+        Duration waitForResolveLimit = Duration.ofSeconds(1);
 
         System.out.println("assemblyConnection = " + assemblyConnection);
 
