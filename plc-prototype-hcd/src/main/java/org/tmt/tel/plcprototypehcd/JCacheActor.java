@@ -16,7 +16,7 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
 
     private ActorContext<CacheMessage> actorContext;
     JCswContext cswCtx;
-    Map<String, Attribute> cache;
+    Map<String, TagItemValue> cache;
     private ILogger log;
 
 
@@ -26,18 +26,18 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
     }
 
     public static final class UpdateMessage implements CacheMessage {
-        public final Attribute[] attributes;
+        public final TagItemValue[] tagItemValues;
 
-        public UpdateMessage(Attribute[] attributes) {
-            this.attributes = attributes;
+        public UpdateMessage(TagItemValue[] tagItemValues) {
+            this.tagItemValues = tagItemValues;
         }
     }
 
     public static final class ReadMessage implements CacheMessage {
-        public final Attribute[] attributes;
+        public final TagItemValue[] tagItemValues;
 
-        public ReadMessage(Attribute[] attributes) {
-            this.attributes = attributes;
+        public ReadMessage(TagItemValue[] tagItemValues) {
+            this.tagItemValues = tagItemValues;
         }
     }
 
@@ -76,7 +76,7 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
                 .onMessage(ReadMessage.class,
                         message -> {
                             log.debug(() -> "ReadMessage Received");
-                            Attribute[] attributes = readCache(message);
+                            TagItemValue[] attributes = readCache(message);
 
                             // how do we return the value to the caller?
 
@@ -96,11 +96,11 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
 
         // if this.cache == null create it
         if (this.cache == null) {
-            cache = new HashMap<String, Attribute>();
+            cache = new HashMap<String, TagItemValue>();
         }
 
         // update the cache with the values from the message
-        for (Attribute attr : updateMessage.attributes) {
+        for (TagItemValue attr : updateMessage.tagItemValues) {
             cache.put(attr.name, attr);
         }
 
@@ -111,20 +111,20 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
      * This method processes updates to the cache.
      * @param readMessage
      */
-    private Attribute[] readCache(ReadMessage readMessage) {
+    private TagItemValue[] readCache(ReadMessage readMessage) {
 
         // populate the message attributes with the values from the cache
         // ignore attributes not in the cache
 
-        for (Attribute attr : readMessage.attributes) {
-            Attribute cacheAttr = cache.get(attr.name);
-            if (cacheAttr != null) {
-                attr.value = cacheAttr.value;
+        for (TagItemValue attr : readMessage.tagItemValues) {
+            TagItemValue cacheValue = cache.get(attr.name);
+            if (cacheValue != null) {
+                attr.value = cacheValue.value;
             }
         }
 
 
-        return readMessage.attributes;
+        return readMessage.tagItemValues;
     }
 
 

@@ -2,6 +2,7 @@ package org.tmt.tel.plcprototypehcd;
 
 import akka.actor.typed.javadsl.ActorContext;
 import com.typesafe.config.Config;
+import csw.command.api.CurrentStateSubscription;
 import csw.command.client.messages.TopLevelActorMessage;
 import csw.config.api.javadsl.IConfigClientService;
 import csw.config.client.javadsl.JConfigClientFactory;
@@ -46,6 +47,7 @@ import csw.params.commands.Result;
 import csw.params.javadsl.JKeyType;
 
 
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -63,9 +65,11 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
     private final JCswContext cswCtx;
     private ActorContext<TopLevelActorMessage> actorContext;
     private final ILogger log;
-    IABPlcioMaster master;
+
     private ActorRef<JCacheActor.CacheMessage> cacheActor;
+    private ActorRef<JPlcioActor.PlcioMessage> plcioActor;
     private IConfigClientService clientApi;
+    ActorRef<JStatePublisherActor.StatePublisherMessage> statePublisherActor;
 
 
     JPlcprototypeHcdHandlers(ActorContext<TopLevelActorMessage> ctx,JCswContext cswCtx) {
@@ -78,19 +82,22 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
         clientApi = JConfigClientFactory.clientApi(Adapter.toUntyped(actorContext.getSystem()), cswCtx.locationService());
 
         // Load the configuration from the configuration service
-        Config hcdConfig = getHcdConfig();
+        Config config = getHcdConfig();
 
+        try {
 
-        // load in config and read it out
+            HcdConfig hcdConfig = new HcdConfig(config);
 
-        String telemetry = hcdConfig.getString("plcHcdConfig.telemetry");
+            cacheActor = ctx.spawnAnonymous(JCacheActor.behavior(cswCtx, null));
 
-        log.info("telemetry = " + telemetry);
+            plcioActor = ctx.spawnAnonymous(JPlcioActor.behavior(cswCtx, hcdConfig));
 
+            statePublisherActor =
+                    ctx.spawnAnonymous(JStatePublisherActor.behavior(cswCtx, hcdConfig, plcioActor));
 
-        cacheActor = ctx.spawnAnonymous(JCacheActor.behavior(cswCtx, null));
-
-
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -98,10 +105,10 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
     log.info("Initializing plcprototype HCD...");
     return CompletableFuture.runAsync(() -> {
 
-        log.info("Initializing ABPlcioMaster...");
-        master = new ABPlcioMaster();
-        log.info("Completed...");
 
+        JStatePublisherActor.StartMessage message = new JStatePublisherActor.StartMessage();
+
+        statePublisherActor.tell(message);
 
     });
     }
@@ -134,8 +141,8 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
 
                 // code for read goes here
 
-                //String value = "test";
-                String value = readTagItemValue("Scott_R", "myRealValue");
+                String value = "6.4";
+
 
                 Key<Double> basePosKey = JKeyType.DoubleKey().make("basePos");
 
@@ -182,51 +189,7 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
 
 
 
-    private String readTagItemValue(String tagName, String itemName) {
 
-        try {
-            // perform a test read to prove it can be done within the HCD
-            PlcioCall plcioCallOpen = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_OPEN, "cip 192.168.1.20",
-                    "Scott_Conn", 0);
-
-
-            // TODO: values her will be derived from the configuration
-            TagItem tagItem1 = new TagItem(itemName, IPlcTag.PropTypes.REAL.getTypeString(), 0,
-                    PlcioPcFormat.TYPE_R, 0, 0);
-
-
-            TagItem[] tagItems1 = {tagItem1};
-
-
-            PlcTag plcTag = new PlcTag(tagName, "" + PlcioPcFormat.TYPE_R,
-                    10000, 1, 4, tagItems1);
-
-
-            PlcioCall plcioCallRead = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_READ, "cip 192.168.1.20",
-                    "Scott_Conn", 0, plcTag);
-
-
-            PlcioCall plcioCallClose = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_CLOSE, "cip 192.168.1.20",
-                    "Scott_Conn", 0);
-
-
-
-            master.plcAccess(plcioCallOpen);
-            master.plcAccess(plcioCallRead);
-            master.plcAccess(plcioCallClose);
-
-            String readValue = plcTag.getMemberValue(itemName);
-
-            return readValue;
-
-        } catch (Exception e) {
-            log.error("" + e);
-            e.printStackTrace();
-            return null;
-        }
-
-
-    }
 
 
 

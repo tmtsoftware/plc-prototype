@@ -1,6 +1,7 @@
 package org.tmt.tel.plcprototypeassembly;
 
 import akka.actor.typed.javadsl.ActorContext;
+import csw.command.api.CurrentStateSubscription;
 import csw.command.api.javadsl.ICommandService;
 import csw.command.client.CommandServiceFactory;
 import csw.command.client.messages.TopLevelActorMessage;
@@ -36,6 +37,8 @@ public class JPlcprototypeAssemblyHandlers extends JComponentHandlers {
     private final ILogger log;
     ICommandService hcd;
     private ActorContext<TopLevelActorMessage> actorContext;
+    private Optional<CurrentStateSubscription> subscription = Optional.empty();
+
 
     JPlcprototypeAssemblyHandlers(ActorContext<TopLevelActorMessage> ctx,JCswContext cswCtx) {
         super(ctx, cswCtx);
