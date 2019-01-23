@@ -18,19 +18,17 @@ public class TagItemValue {
     String javaTypeName;
     boolean isBoolean;
     int bitPosition;
+    String units;
 
 
-    public TagItemValue(String name, TagItemValue.PlcTypes type, String value) {
-        this.name = name;
-        this.type = type;
-        this.value = value;
-    }
-    public TagItemValue(String name, String javaTypeName, String tagName, int tagMemberNumber, int bitPosition) {
+
+    public TagItemValue(String name, String javaTypeName, String tagName, int tagMemberNumber, int bitPosition, String units) {
         this.name = name;
         this.javaTypeName = javaTypeName;
         this.tagName = tagName;
         this.tagMemberNumber = tagMemberNumber;
         this.bitPosition = bitPosition;
+        this.units = units;
 
         switch (javaTypeName) {
             case "Boolean": this.type = PlcTypes.BOOLEAN; break;

@@ -4,8 +4,6 @@ package org.tmt.tel.plcprototypehcd;
 import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.*;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigObject;
 import csw.framework.models.JCswContext;
 import csw.logging.javadsl.ILogger;
 import org.tmt.tel.javaplc.*;
@@ -22,7 +20,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
     private ILogger log;
     IABPlcioMaster master;
-    HcdConfig hcdConfig;
+    PlcConfig plcConfig;
 
 
 
@@ -58,11 +56,11 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
 
 
-    private JPlcioActor(ActorContext<JPlcioActor.PlcioMessage> actorContext, JCswContext cswCtx, HcdConfig hcdConfig) {
+    private JPlcioActor(ActorContext<JPlcioActor.PlcioMessage> actorContext, JCswContext cswCtx, PlcConfig plcConfig) {
         this.actorContext = actorContext;
         this.cswCtx = cswCtx;
         this.log = cswCtx.loggerFactory().getLogger(JPlcioActor.class);
-        this.hcdConfig = hcdConfig;
+        this.plcConfig = plcConfig;
 
 
 
@@ -77,9 +75,9 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
         log.info("Cache Actor Created");
     }
 
-    public static <PlcioMessage> Behavior<PlcioMessage> behavior(JCswContext cswCtx, HcdConfig hcdConfig) {
+    public static <PlcioMessage> Behavior<PlcioMessage> behavior(JCswContext cswCtx, PlcConfig plcConfig) {
         return Behaviors.setup(ctx -> {
-            return (AbstractBehavior<PlcioMessage>) new JPlcioActor((ActorContext<JPlcioActor.PlcioMessage>) ctx, cswCtx, hcdConfig);
+            return (AbstractBehavior<PlcioMessage>) new JPlcioActor((ActorContext<JPlcioActor.PlcioMessage>) ctx, cswCtx, plcConfig);
         });
     }
 
@@ -95,7 +93,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
                         message -> {
                             log.debug(() -> "UpdateMessage Received");
                             writePlc(message);
-                            return behavior(cswCtx, hcdConfig);
+                            return behavior(cswCtx, plcConfig);
                         })
                 .onMessage(ReadMessage.class,
                         message -> {
@@ -124,9 +122,6 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
      */
     private void readPlc(ReadMessage readMessage) {
 
-
-
-
         // the read message contains each value to be read.
         // Its better to read the whole tag once than read parts of it over and over.
 
@@ -153,8 +148,8 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
             Map<String, PlcTag> tagName2PlcTag = new HashMap<String, PlcTag>();
             for (String tagName : tagInfoMap.keySet()) {
 
-                TagMetadata tagMetadata = hcdConfig.tag2meta.get(tagName);
-                List<TagItemValue> tagItems = hcdConfig.tag2ItemValueList.get(tagName);
+                TagMetadata tagMetadata = plcConfig.tag2meta.get(tagName);
+                List<TagItemValue> tagItems = plcConfig.tag2ItemValueList.get(tagName);
 
                 // create all the TagItems for the read
                 List<TagItem> tagItemList = new ArrayList<TagItem>();
@@ -195,7 +190,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
                 String value = plcTag.getTagItemValue(tagItemValue.name);
 
-                System.out.println("PLCIO ACTOR::readPlc::value = " + value);
+                log.debug("PLCIO ACTOR::readPlc::value = " + value);
 
                 tagItemValue.value = value;
 
@@ -207,59 +202,11 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
 
         } catch (Exception e) {
-            System.out.println(e.getMessage());
+            log.error(e.getMessage());
             e.printStackTrace();
         }
 
     }
-
-
-    private String readTagItemValue(String tagName, String itemName) {
-
-        try {
-            // perform a test read to prove it can be done within the HCD
-            PlcioCall plcioCallOpen = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_OPEN, "cip 192.168.1.20",
-                    "Scott_Conn", 0);
-
-
-            // TODO: values here will be derived from the configuration
-            TagItem tagItem1 = new TagItem(itemName, IPlcTag.PropTypes.REAL.getTypeString(), 0,
-                    PlcioPcFormat.TYPE_R, 0, 0);
-
-
-            TagItem[] tagItems1 = {tagItem1};
-
-
-            PlcTag plcTag = new PlcTag(tagName, "" + PlcioPcFormat.TYPE_R,
-                    10000, 1, 4, tagItems1);
-
-
-            PlcioCall plcioCallRead = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_READ, "cip 192.168.1.20",
-                    "Scott_Conn", 0, plcTag);
-
-
-            PlcioCall plcioCallClose = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_CLOSE, "cip 192.168.1.20",
-                    "Scott_Conn", 0);
-
-
-
-            master.plcAccess(plcioCallOpen);
-            master.plcAccess(plcioCallRead);
-            master.plcAccess(plcioCallClose);
-
-            String readValue = plcTag.getMemberValue(itemName);
-
-            return readValue;
-
-        } catch (Exception e) {
-            log.error("" + e);
-            e.printStackTrace();
-            return null;
-        }
-
-
-    }
-
 
 
 }

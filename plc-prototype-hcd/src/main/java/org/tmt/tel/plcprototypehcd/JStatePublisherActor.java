@@ -7,8 +7,6 @@ import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.*;
 
 import akka.util.Timeout;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigObject;
 import csw.framework.models.JCswContext;
 
 import csw.location.server.commons.ClusterAwareSettings;
@@ -18,24 +16,18 @@ import csw.params.core.states.CurrentState;
 import csw.params.core.states.StateName;
 
 
-import csw.params.javadsl.JUnits;
 import csw.params.javadsl.JKeyType;
 import csw.params.core.generics.Parameter;
 
 import csw.framework.CurrentStatePublisher;
 import csw.logging.javadsl.ILogger;
-import csw.logging.javadsl.JLoggerFactory;
-import scala.concurrent.duration.Duration;
 
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import static csw.params.javadsl.JUnits.degree;
+import csw.params.javadsl.JUnits;
+
 
 
 public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.StatePublisherMessage> {
@@ -60,7 +52,7 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
     private TimerScheduler<StatePublisherMessage> timer;
     JCswContext cswCtx;
     ActorRef plcioActor;
-    HcdConfig hcdConfig;
+    PlcConfig plcConfig;
     ActorContext actorContext;
 
 
@@ -71,20 +63,20 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
     private static final Object TIMER_KEY = new Object();
 
 
-    private JStatePublisherActor(TimerScheduler<JStatePublisherActor.StatePublisherMessage> timer, JCswContext cswCtx, HcdConfig hcdConfig, ActorRef plcioActor) {
+    private JStatePublisherActor(TimerScheduler<JStatePublisherActor.StatePublisherMessage> timer, JCswContext cswCtx, PlcConfig plcConfig, ActorRef plcioActor) {
         this.timer = timer;
         this.actorContext = actorContext;
         this.log = cswCtx.loggerFactory().getLogger(JCacheActor.class);
         this.currentStatePublisher = cswCtx.currentStatePublisher();
         this.cswCtx = cswCtx;
         this.plcioActor = plcioActor;
-        this.hcdConfig = hcdConfig;
+        this.plcConfig = plcConfig;
 
     }
 
-    public static <StatePublisherMessage> Behavior<StatePublisherMessage> behavior(JCswContext cswCtx, HcdConfig hcdConfig, ActorRef plcioActor) {
+    public static <StatePublisherMessage> Behavior<StatePublisherMessage> behavior(JCswContext cswCtx, PlcConfig plcConfig, ActorRef plcioActor) {
         return Behaviors.withTimers(timers -> {
-            return (AbstractBehavior<StatePublisherMessage>) new JStatePublisherActor((TimerScheduler<JStatePublisherActor.StatePublisherMessage>) timers, cswCtx, hcdConfig, plcioActor);
+            return (AbstractBehavior<StatePublisherMessage>) new JStatePublisherActor((TimerScheduler<JStatePublisherActor.StatePublisherMessage>) timers, cswCtx, plcConfig, plcioActor);
         });
     }
 
@@ -137,16 +129,15 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
 
         // Read PLC
         ActorSystem actorSystem = Adapter.toTyped(ClusterAwareSettings.system());
-        TagItemValue[] tagItemValues = readTagValues(plcioActor,  actorSystem, hcdConfig.telemetryTagItemValues);
+        TagItemValue[] tagItemValues = readTagValues(plcioActor,  actorSystem, plcConfig.telemetryTagItemValues);
 
         // example parameters for a current state
 
         CurrentState currentState = generateCurrentStateFromTagItemValues(tagItemValues);
 
-        System.out.println("Publishing Current State = " + currentState);
+        log.debug("Publishing Current State = " + currentState);
 
         currentStatePublisher.publish(currentState);
-
 
     }
 
@@ -166,18 +157,21 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
                 case "Integer":
                     Key intKey = JKeyType.IntKey().make(tagItemValue.name);
                     Parameter intParam = intKey.set(new Integer(tagItemValue.value));
+                    intParam = addUnits(intParam, tagItemValue.units);
                     currentState = currentState.add(intParam);
                     break;
 
                 case "Float":
                     Key floatKey = JKeyType.FloatKey().make(tagItemValue.name);
                     Parameter floatParam = floatKey.set(new Float(tagItemValue.value));
+                    floatParam = addUnits(floatParam, tagItemValue.units);
                     currentState = currentState.add(floatParam);
                     break;
 
                 case "Boolean":
                     Key booleanKey = JKeyType.BooleanKey().make(tagItemValue.name);
                     Parameter booleanParam = booleanKey.set(new Boolean(tagItemValue.value));
+                    booleanParam = addUnits(booleanParam, tagItemValue.units);
                     currentState = currentState.add(booleanParam);
                     break;
             }
@@ -186,6 +180,22 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
 
         return currentState;
     }
+
+    private Parameter addUnits(Parameter param, String unitsString) {
+
+        switch(unitsString) {
+
+            case "meters": return param.withUnits(JUnits.meter);
+            case "counts": return param.withUnits(JUnits.count);
+            case "degrees": return param.withUnits(JUnits.degree);
+            case "noUnits" : return param.withUnits(JUnits.NoUnits);
+            default: return param.withUnits(JUnits.NoUnits);
+
+
+        }
+
+    }
+
 
 
     public static TagItemValue[] readTagValues(ActorRef<JPlcioActor.ReadMessage> actorRef, ActorSystem sys, TagItemValue[] tagItemValues) {

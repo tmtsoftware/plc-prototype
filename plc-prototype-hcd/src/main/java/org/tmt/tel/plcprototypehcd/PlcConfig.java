@@ -5,7 +5,7 @@ import com.typesafe.config.ConfigObject;
 
 import java.util.*;
 
-public class HcdConfig {
+public class PlcConfig {
 
     TagItemValue[] telemetryTagItemValues;
     HashMap<String, TagItemValue> name2TagItemValue = new HashMap<String, TagItemValue>();
@@ -13,7 +13,7 @@ public class HcdConfig {
     Map<String, List<TagItemValue>> tag2ItemValueList = new HashMap<String, List<TagItemValue>>();
 
 
-    public HcdConfig(Config hcdConfig) throws Exception {
+    public PlcConfig(Config hcdConfig) throws Exception {
 
         telemetryTagItemValues = setupTelemetryTagItemValues(hcdConfig);
 
@@ -40,8 +40,9 @@ public class HcdConfig {
             String javaTypeName = configObject.toConfig().getString("JavaType");
             boolean isBoolean = configObject.toConfig().getBoolean("IsBoolean");
             int bitPosition = configObject.toConfig().getInt("BitPosition");
+            String units = configObject.toConfig().getString("Units");
 
-            TagItemValue tagItemValue = new TagItemValue(name, javaTypeName, tagName, tagMemberNumber, bitPosition);
+            TagItemValue tagItemValue = new TagItemValue(name, javaTypeName, tagName, tagMemberNumber, bitPosition, units);
 
             name2TagItemValue.put(name, tagItemValue);
 
@@ -77,8 +78,9 @@ public class HcdConfig {
             String javaTypeName = configObject.toConfig().getString("JavaType");
             boolean isBoolean = configObject.toConfig().getBoolean("IsBoolean");
             int bitPosition = configObject.toConfig().getInt("BitPosition");
+            String units = configObject.toConfig().getString("Units");
 
-            TagItemValue tagItemValue = new TagItemValue(name, javaTypeName, tagName, tagMemberNumber, bitPosition);
+            TagItemValue tagItemValue = new TagItemValue(name, javaTypeName, tagName, tagMemberNumber, bitPosition, units);
 
             name2TagItemValue.put(name, tagItemValue);
 

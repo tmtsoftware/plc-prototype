@@ -2,7 +2,6 @@ package org.tmt.tel.plcprototypehcd;
 
 import akka.actor.typed.javadsl.ActorContext;
 import com.typesafe.config.Config;
-import csw.command.api.CurrentStateSubscription;
 import csw.command.client.messages.TopLevelActorMessage;
 import csw.config.api.javadsl.IConfigClientService;
 import csw.config.client.javadsl.JConfigClientFactory;
@@ -30,24 +29,12 @@ import java.nio.file.Path;
 
 import csw.params.core.generics.Key;
 import csw.params.core.generics.Parameter;
-import csw.params.core.models.Id;
-import csw.params.core.models.Prefix;
-import org.tmt.tel.javaplc.ABPlcioMaster;
-import org.tmt.tel.javaplc.IABPlcioMaster;
-import org.tmt.tel.javaplc.IPlcioCall;
-import org.tmt.tel.javaplc.PlcioCall;
-import org.tmt.tel.javaplc.TagItem;
-import org.tmt.tel.javaplc.IPlcTag;
-import org.tmt.tel.javaplc.PlcTag;
-import org.tmt.tel.javaplc.PlcioPcFormat;
-import org.tmt.tel.javaplc.TagItem;
 
 import csw.params.commands.Result;
 
 import csw.params.javadsl.JKeyType;
 
 
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -86,14 +73,14 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
 
         try {
 
-            HcdConfig hcdConfig = new HcdConfig(config);
+            PlcConfig plcConfig = new PlcConfig(config);
 
             cacheActor = ctx.spawnAnonymous(JCacheActor.behavior(cswCtx, null));
 
-            plcioActor = ctx.spawnAnonymous(JPlcioActor.behavior(cswCtx, hcdConfig));
+            plcioActor = ctx.spawnAnonymous(JPlcioActor.behavior(cswCtx, plcConfig));
 
             statePublisherActor =
-                    ctx.spawnAnonymous(JStatePublisherActor.behavior(cswCtx, hcdConfig, plcioActor));
+                    ctx.spawnAnonymous(JStatePublisherActor.behavior(cswCtx, plcConfig, plcioActor));
 
         } catch (Exception e) {
             e.printStackTrace();
