@@ -134,17 +134,14 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
 
         log.info("Publish Message Received ");
 
+
         // Read PLC
         ActorSystem actorSystem = Adapter.toTyped(ClusterAwareSettings.system());
         TagItemValue[] tagItemValues = readTagValues(plcioActor,  actorSystem, hcdConfig.telemetryTagItemValues);
 
-        for (TagItemValue tagItemValue : tagItemValues) {
-            System.out.println("tagItemValues = " + tagItemValue.name + "::" + tagItemValue.value);
-        }
         // example parameters for a current state
 
         CurrentState currentState = generateCurrentStateFromTagItemValues(tagItemValues);
-
 
         System.out.println("Publishing Current State = " + currentState);
 
@@ -156,11 +153,11 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
     // TODO: need to support "withUnits()" from configuration
 
     private CurrentState generateCurrentStateFromTagItemValues(TagItemValue[] tagItemValues) {
-        CurrentState currentState = new CurrentState(prefix, new StateName("a state"));
+        CurrentState currentState = new CurrentState(prefix, new StateName("PlcTelemetry"));
 
         Key timestampKey = JKeyType.TimestampKey().make("timestampKey");
         Parameter timestamp = timestampKey.set(Instant.now());
-        currentState.add(timestamp);
+        currentState = currentState.add(timestamp);
 
         for (TagItemValue tagItemValue : tagItemValues) {
 
@@ -169,19 +166,19 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
                 case "Integer":
                     Key intKey = JKeyType.IntKey().make(tagItemValue.name);
                     Parameter intParam = intKey.set(new Integer(tagItemValue.value));
-                    currentState.add(intParam);
+                    currentState = currentState.add(intParam);
                     break;
 
                 case "Float":
                     Key floatKey = JKeyType.FloatKey().make(tagItemValue.name);
                     Parameter floatParam = floatKey.set(new Float(tagItemValue.value));
-                    currentState.add(floatParam);
+                    currentState = currentState.add(floatParam);
                     break;
 
                 case "Boolean":
                     Key booleanKey = JKeyType.BooleanKey().make(tagItemValue.name);
                     Parameter booleanParam = booleanKey.set(new Boolean(tagItemValue.value));
-                    currentState.add(booleanParam);
+                    currentState = currentState.add(booleanParam);
                     break;
             }
 
