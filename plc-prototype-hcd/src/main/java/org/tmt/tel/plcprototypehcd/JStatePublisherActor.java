@@ -1,14 +1,17 @@
 package org.tmt.tel.plcprototypehcd;
 
 import akka.actor.typed.ActorRef;
+import akka.actor.typed.ActorSystem;
 import akka.actor.typed.Behavior;
 
 import akka.actor.typed.javadsl.*;
 
+import akka.util.Timeout;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
 import csw.framework.models.JCswContext;
 
+import csw.location.server.commons.ClusterAwareSettings;
 import csw.params.core.generics.Key;
 import csw.params.core.models.Prefix;
 import csw.params.core.states.CurrentState;
@@ -39,11 +42,17 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
 
 
     // add messages here
-    interface StatePublisherMessage {}
+    interface StatePublisherMessage {
+    }
 
-    public static final class StartMessage implements StatePublisherMessage { }
-    public static final class StopMessage implements StatePublisherMessage { }
-    public static final class PublishMessage implements StatePublisherMessage { }
+    public static final class StartMessage implements StatePublisherMessage {
+    }
+
+    public static final class StopMessage implements StatePublisherMessage {
+    }
+
+    public static final class PublishMessage implements StatePublisherMessage {
+    }
 
 
     private CurrentStatePublisher currentStatePublisher;
@@ -52,28 +61,19 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
     JCswContext cswCtx;
     ActorRef plcioActor;
     HcdConfig hcdConfig;
-
+    ActorContext actorContext;
 
 
     //prefix
-    Prefix prefix = new Prefix("tcs.test");
+    Prefix prefix = new Prefix("plc.hcd");
 
-    //keys
-    Key timestampKey    = JKeyType.TimestampKey().make("timestampKey");
-
-    Key azPosKey        = JKeyType.DoubleKey().make("azPosKey");
-    Key azPosErrorKey   = JKeyType.DoubleKey().make("azPosErrorKey");
-    Key elPosKey        = JKeyType.DoubleKey().make("elPosKey");
-    Key elPosErrorKey   = JKeyType.DoubleKey().make("elPosErrorKey");
-    Key azInPositionKey = JKeyType.BooleanKey().make("azInPositionKey");
-    Key elInPositionKey = JKeyType.BooleanKey().make("elInPositionKey");
 
     private static final Object TIMER_KEY = new Object();
 
 
-
     private JStatePublisherActor(TimerScheduler<JStatePublisherActor.StatePublisherMessage> timer, JCswContext cswCtx, HcdConfig hcdConfig, ActorRef plcioActor) {
         this.timer = timer;
+        this.actorContext = actorContext;
         this.log = cswCtx.loggerFactory().getLogger(JCacheActor.class);
         this.currentStatePublisher = cswCtx.currentStatePublisher();
         this.cswCtx = cswCtx;
@@ -84,7 +84,7 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
 
     public static <StatePublisherMessage> Behavior<StatePublisherMessage> behavior(JCswContext cswCtx, HcdConfig hcdConfig, ActorRef plcioActor) {
         return Behaviors.withTimers(timers -> {
-            return (AbstractBehavior<StatePublisherMessage>) new JStatePublisherActor((TimerScheduler<JStatePublisherActor.StatePublisherMessage>)timers, cswCtx, hcdConfig, plcioActor);
+            return (AbstractBehavior<StatePublisherMessage>) new JStatePublisherActor((TimerScheduler<JStatePublisherActor.StatePublisherMessage>) timers, cswCtx, hcdConfig, plcioActor);
         });
     }
 
@@ -135,36 +135,76 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
         log.info("Publish Message Received ");
 
         // Read PLC
+        ActorSystem actorSystem = Adapter.toTyped(ClusterAwareSettings.system());
+        TagItemValue[] tagItemValues = readTagValues(plcioActor,  actorSystem, hcdConfig.telemetryTagItemValues);
 
-        JPlcioActor.PlcioMessage readMessage = new JPlcioActor.ReadMessage(hcdConfig.telemetryTagItemValues);
-        plcioActor.tell(readMessage);
-
-
+        for (TagItemValue tagItemValue : tagItemValues) {
+            System.out.println("tagItemValues = " + tagItemValue.name + "::" + tagItemValue.value);
+        }
         // example parameters for a current state
 
-        Parameter azPosParam        = azPosKey.set(35.34).withUnits(degree);
-        Parameter azPosErrorParam   = azPosErrorKey.set(0.34).withUnits(degree);
-        Parameter elPosParam        = elPosKey.set(46.7).withUnits(degree);
-        Parameter elPosErrorParam   = elPosErrorKey.set(0.03).withUnits(degree);
-        Parameter azInPositionParam = azInPositionKey.set(false);
-        Parameter elInPositionParam = elInPositionKey.set(true);
+        CurrentState currentState = generateCurrentStateFromTagItemValues(tagItemValues);
 
-        Parameter timestamp = timestampKey.set(Instant.now());
 
-        //create CurrentState and use sequential add
-        CurrentState currentState = new CurrentState(prefix, new StateName("a state"))
-                .add(azPosParam)
-                .add(elPosParam)
-                .add(azPosErrorParam)
-                .add(elPosErrorParam)
-                .add(azInPositionParam)
-                .add(elInPositionParam)
-                .add(timestamp);
+        System.out.println("Publishing Current State = " + currentState);
 
         currentStatePublisher.publish(currentState);
 
 
     }
 
+    // TODO: need to support "withUnits()" from configuration
+
+    private CurrentState generateCurrentStateFromTagItemValues(TagItemValue[] tagItemValues) {
+        CurrentState currentState = new CurrentState(prefix, new StateName("a state"));
+
+        Key timestampKey = JKeyType.TimestampKey().make("timestampKey");
+        Parameter timestamp = timestampKey.set(Instant.now());
+        currentState.add(timestamp);
+
+        for (TagItemValue tagItemValue : tagItemValues) {
+
+            switch (tagItemValue.javaTypeName) {
+
+                case "Integer":
+                    Key intKey = JKeyType.IntKey().make(tagItemValue.name);
+                    Parameter intParam = intKey.set(new Integer(tagItemValue.value));
+                    currentState.add(intParam);
+                    break;
+
+                case "Float":
+                    Key floatKey = JKeyType.FloatKey().make(tagItemValue.name);
+                    Parameter floatParam = floatKey.set(new Float(tagItemValue.value));
+                    currentState.add(floatParam);
+                    break;
+
+                case "Boolean":
+                    Key booleanKey = JKeyType.BooleanKey().make(tagItemValue.name);
+                    Parameter booleanParam = booleanKey.set(new Boolean(tagItemValue.value));
+                    currentState.add(booleanParam);
+                    break;
+            }
+
+        }
+
+        return currentState;
+    }
+
+
+    public static TagItemValue[] readTagValues(ActorRef<JPlcioActor.ReadMessage> actorRef, ActorSystem sys, TagItemValue[] tagItemValues) {
+        final JPlcioActor.ReadResponseMessage readResponse;
+        try {
+            readResponse = AskPattern.ask(actorRef, (ActorRef<JPlcioActor.ReadResponseMessage> replyTo) ->
+                            new JPlcioActor.ReadMessage(replyTo, tagItemValues)
+                    , new Timeout(10, TimeUnit.SECONDS), sys.scheduler()).toCompletableFuture().get();
+            //  log.debug(() -> "Got tag values from plcio actor - "
+            return readResponse.tagItemValues;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+
+
+    }
 
 }

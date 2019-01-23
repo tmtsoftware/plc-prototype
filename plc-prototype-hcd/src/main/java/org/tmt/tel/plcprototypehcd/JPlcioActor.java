@@ -1,6 +1,7 @@
 package org.tmt.tel.plcprototypehcd;
 
 
+import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.*;
 import com.typesafe.config.Config;
@@ -39,8 +40,18 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
     public static final class ReadMessage implements PlcioMessage {
         public final TagItemValue[] tagItemValues;
+        public final ActorRef replyTo;
 
-        public ReadMessage(TagItemValue[] tagItemValues) {
+        public ReadMessage(ActorRef replyTo, TagItemValue[] tagItemValues) {
+            this.tagItemValues = tagItemValues;
+            this.replyTo = replyTo;
+        }
+    }
+
+    public static final class ReadResponseMessage implements PlcioMessage {
+        public final TagItemValue[] tagItemValues;
+
+        public ReadResponseMessage(TagItemValue[] tagItemValues) {
             this.tagItemValues = tagItemValues;
         }
     }
@@ -89,7 +100,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
                 .onMessage(ReadMessage.class,
                         message -> {
                             log.debug(() -> "ReadMessage Received");
-                            TagItemValue[] attributes = readPlc(message);
+                            readPlc(message);
 
                             // how do we return the value to the caller?
 
@@ -111,7 +122,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
      * This method processes reads to the plc.
      * @param readMessage
      */
-    private TagItemValue[] readPlc(ReadMessage readMessage) {
+    private void readPlc(ReadMessage readMessage) {
 
 
 
@@ -190,6 +201,9 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
             }
 
+            // send the response back
+            readMessage.replyTo.tell(new ReadResponseMessage(readMessage.tagItemValues));
+
 
 
         } catch (Exception e) {
@@ -197,7 +211,6 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
             e.printStackTrace();
         }
 
-        return readMessage.tagItemValues;
     }
 
 
