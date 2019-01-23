@@ -100,8 +100,8 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
         }
 
         // update the cache with the values from the message
-        for (TagItemValue attr : updateMessage.tagItemValues) {
-            cache.put(attr.name, attr);
+        for (TagItemValue tagItemValue : updateMessage.tagItemValues) {
+            cache.put(tagItemValue.name, tagItemValue);
         }
 
         return cache;
@@ -116,10 +116,10 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
         // populate the message attributes with the values from the cache
         // ignore attributes not in the cache
 
-        for (TagItemValue attr : readMessage.tagItemValues) {
-            TagItemValue cacheValue = cache.get(attr.name);
+        for (TagItemValue tagItemValue : readMessage.tagItemValues) {
+            TagItemValue cacheValue = cache.get(tagItemValue.name);
             if (cacheValue != null) {
-                attr.value = cacheValue.value;
+                tagItemValue.value = cacheValue.value;
             }
         }
 

@@ -73,6 +73,7 @@ public class JPlcprototypeAssemblyHandlers extends JComponentHandlers {
 
             // as a test, let's read the PLC
 
+            /*
             Setup sc = new Setup(new Prefix("prototypeAssembly"), new CommandName("read"), Optional.of(new ObsId("Obs001")));
             Timeout timeout = new Timeout(100, TimeUnit.SECONDS);
             CompletableFuture<CommandResponse.SubmitResponse> immediateCommandF =
@@ -91,9 +92,17 @@ public class JPlcprototypeAssemblyHandlers extends JComponentHandlers {
                                         return response;
                                     }
                             );
+            */
+
+            subscription = Optional.of(hcd.subscribeCurrentState(currentState -> {
+                    log.info("receiving current state from PLC HCD:" + currentState);
+            }));
 
         }
+
+        // TODO: unsubscribe when HCD location is lost
     }
+
 
     @Override
     public CommandResponse.ValidateCommandResponse validateCommand(ControlCommand controlCommand) {

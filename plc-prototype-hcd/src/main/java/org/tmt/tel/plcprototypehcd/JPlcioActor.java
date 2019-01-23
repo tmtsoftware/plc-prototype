@@ -21,6 +21,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
     private ILogger log;
     IABPlcioMaster master;
     PlcConfig plcConfig;
+    private ActorRef<JCacheActor.CacheMessage> cacheActor;
 
 
 
@@ -56,11 +57,12 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
 
 
-    private JPlcioActor(ActorContext<JPlcioActor.PlcioMessage> actorContext, JCswContext cswCtx, PlcConfig plcConfig) {
+    private JPlcioActor(ActorContext<JPlcioActor.PlcioMessage> actorContext, JCswContext cswCtx, PlcConfig plcConfig, ActorRef<JCacheActor.CacheMessage> cacheActor) {
         this.actorContext = actorContext;
         this.cswCtx = cswCtx;
         this.log = cswCtx.loggerFactory().getLogger(JPlcioActor.class);
         this.plcConfig = plcConfig;
+        this.cacheActor = cacheActor;
 
 
 
@@ -75,9 +77,9 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
         log.info("Cache Actor Created");
     }
 
-    public static <PlcioMessage> Behavior<PlcioMessage> behavior(JCswContext cswCtx, PlcConfig plcConfig) {
+    public static <PlcioMessage> Behavior<PlcioMessage> behavior(JCswContext cswCtx, PlcConfig plcConfig, ActorRef<JCacheActor.CacheMessage> cacheActor) {
         return Behaviors.setup(ctx -> {
-            return (AbstractBehavior<PlcioMessage>) new JPlcioActor((ActorContext<JPlcioActor.PlcioMessage>) ctx, cswCtx, plcConfig);
+            return (AbstractBehavior<PlcioMessage>) new JPlcioActor((ActorContext<JPlcioActor.PlcioMessage>) ctx, cswCtx, plcConfig, cacheActor);
         });
     }
 
@@ -93,7 +95,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
                         message -> {
                             log.debug(() -> "UpdateMessage Received");
                             writePlc(message);
-                            return behavior(cswCtx, plcConfig);
+                            return behavior(cswCtx, plcConfig, cacheActor);
                         })
                 .onMessage(ReadMessage.class,
                         message -> {
@@ -198,6 +200,9 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
             // send the response back
             readMessage.replyTo.tell(new ReadResponseMessage(readMessage.tagItemValues));
+
+            // update the Cache
+            cacheActor.tell(new JCacheActor.UpdateMessage(readMessage.tagItemValues));
 
 
 

@@ -77,7 +77,7 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
 
             cacheActor = ctx.spawnAnonymous(JCacheActor.behavior(cswCtx, null));
 
-            plcioActor = ctx.spawnAnonymous(JPlcioActor.behavior(cswCtx, plcConfig));
+            plcioActor = ctx.spawnAnonymous(JPlcioActor.behavior(cswCtx, plcConfig, cacheActor));
 
             statePublisherActor =
                     ctx.spawnAnonymous(JStatePublisherActor.behavior(cswCtx, plcConfig, plcioActor));
