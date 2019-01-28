@@ -106,7 +106,34 @@ public class CommandClient {
             Long[] timeDurationValue = new Long[1];
             timeDurationValue[0] = 10L;
 
-            Setup setup = new Setup(source, new CommandName("read"), obsId);
+            Setup setup = new Setup(source, new CommandName("readPlc"), obsId);
+            log.debug("Submitting read command to assembly...");
+
+            return commandService.submit(setup, Timeout.durationToTimeout(FiniteDuration.apply(20, TimeUnit.SECONDS)));
+
+        } else {
+
+            return CompletableFuture.completedFuture(new CommandResponse.Error(new Id(""), "Can't locate Assembly"));
+        }
+
+
+    }
+    /**
+     * Sends a write message to the Assembly and returns the response
+     */
+    public CompletableFuture<CommandResponse.SubmitResponse> write(Optional<ObsId> obsId) {
+
+        if (commandServiceOptional.isPresent()) {
+
+            ICommandService commandService = commandServiceOptional.get();
+            Long[] timeDurationValue = new Long[1];
+            timeDurationValue[0] = 10L;
+
+            Setup setup = new Setup(source, new CommandName("write"), obsId);
+
+            // TODO: add some parameters
+
+
             log.debug("Submitting read command to assembly...");
 
             return commandService.submit(setup, Timeout.durationToTimeout(FiniteDuration.apply(20, TimeUnit.SECONDS)));
@@ -145,15 +172,21 @@ public class CommandClient {
 
         boolean keepRunning = true;
         while (keepRunning) {
-            log.info(() -> "Type command name [startup, invalidMove, move, follow, shutdown, takeCommandMeasures] or type 'exit' to stop client");
+            log.info(() -> "Type command name [read, write] or type 'exit' to stop client");
 
             String commandName = scanner.nextLine();
             switch (commandName) {
-                 case "read":
+                case "read":
                     log.info(() -> "Commanding read: ");
                     CompletableFuture<CommandResponse.SubmitResponse> readCmdResponse = encClient.read(maybeObsId);
                     CommandResponse respReadCmd = readCmdResponse.get();
                     log.info(() -> "Read cmd response: " + respReadCmd);
+                    break;
+                case "write":
+                    log.info(() -> "Commanding write: ");
+                    CompletableFuture<CommandResponse.SubmitResponse> writeCmdResponse = encClient.write(maybeObsId);
+                    CommandResponse respWriteCmd = writeCmdResponse.get();
+                    log.info(() -> "Read cmd response: " + respWriteCmd);
                     break;
                 case "exit":
                     keepRunning = false;

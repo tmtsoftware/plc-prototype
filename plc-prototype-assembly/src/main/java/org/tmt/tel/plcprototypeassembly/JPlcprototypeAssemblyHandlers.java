@@ -1,5 +1,6 @@
 package org.tmt.tel.plcprototypeassembly;
 
+import akka.actor.typed.ActorRef;
 import akka.actor.typed.javadsl.ActorContext;
 import csw.command.api.CurrentStateSubscription;
 import csw.command.api.javadsl.ICommandService;
@@ -35,12 +36,15 @@ public class JPlcprototypeAssemblyHandlers extends JComponentHandlers {
 
     private final JCswContext cswCtx;
     private final ILogger log;
-    ICommandService hcd;
+    private Optional<ICommandService> hcd = Optional.empty();
     private ActorContext<TopLevelActorMessage> actorContext;
     private Optional<CurrentStateSubscription> subscription = Optional.empty();
 
+    private ActorRef<JCommandHandlerActor.CommandMessage> commandHandlerActor;
 
-    JPlcprototypeAssemblyHandlers(ActorContext<TopLevelActorMessage> ctx,JCswContext cswCtx) {
+
+
+    JPlcprototypeAssemblyHandlers(ActorContext<TopLevelActorMessage> ctx, JCswContext cswCtx) {
         super(ctx, cswCtx);
         this.cswCtx = cswCtx;
         this.log = cswCtx.loggerFactory().getLogger(getClass());
@@ -51,6 +55,8 @@ public class JPlcprototypeAssemblyHandlers extends JComponentHandlers {
     public CompletableFuture<Void> jInitialize() {
         log.info("Initializing plcprototype assembly...");
         return CompletableFuture.runAsync(() -> {
+
+            commandHandlerActor = actorContext.spawnAnonymous(JCommandHandlerActor.behavior(cswCtx, hcd));
 
         });
     }
@@ -65,42 +71,30 @@ public class JPlcprototypeAssemblyHandlers extends JComponentHandlers {
     @Override
     public void onLocationTrackingEvent(TrackingEvent trackingEvent) {
 
+
+        System.out.println("LOCATION TRACKKING EVENT = " + trackingEvent);
+
         if (trackingEvent instanceof LocationUpdated) {
             LocationUpdated updated = (LocationUpdated) trackingEvent;
             Location location = updated.location();
-            hcd = CommandServiceFactory.jMake((AkkaLocation) (location), actorContext.getSystem());
+            hcd = Optional.of(CommandServiceFactory.jMake((AkkaLocation) (location), actorContext.getSystem()));
             System.out.println("hcd located = " + hcd);
 
-            // as a test, let's read the PLC
+            // update command handler
+            commandHandlerActor = actorContext.spawnAnonymous(JCommandHandlerActor.behavior(cswCtx, hcd));
 
-            /*
-            Setup sc = new Setup(new Prefix("prototypeAssembly"), new CommandName("read"), Optional.of(new ObsId("Obs001")));
-            Timeout timeout = new Timeout(100, TimeUnit.SECONDS);
-            CompletableFuture<CommandResponse.SubmitResponse> immediateCommandF =
-                    hcd.submit(sc, timeout)
-                            .thenApply(
-                                    response -> {
-                                        if (response instanceof CommandResponse.CompletedWithResult) {
-                                            //do something with completed result
-
-                                            System.out.println("hcd command completed!  Result = " + ((CommandResponse.CompletedWithResult) response).result());
-
-
-                                        } else {
-                                            System.out.println("unexpected response = " + response);
-                                        }
-                                        return response;
-                                    }
-                            );
-            */
-
-            subscription = Optional.of(hcd.subscribeCurrentState(currentState -> {
+            subscription = Optional.of(hcd.get().subscribeCurrentState(currentState -> {
                     log.info("receiving current state from PLC HCD:" + currentState);
             }));
 
+        } else {
+
+            hcd = Optional.empty();
+
+            // TODO: unsubscribe when HCD location is lost
         }
 
-        // TODO: unsubscribe when HCD location is lost
+
     }
 
 
@@ -111,7 +105,10 @@ public class JPlcprototypeAssemblyHandlers extends JComponentHandlers {
 
     @Override
     public CommandResponse.SubmitResponse onSubmit(ControlCommand controlCommand) {
-        return new CommandResponse.Completed(controlCommand.runId());
+
+        commandHandlerActor.tell(new JCommandHandlerActor.SubmitCommandMessage(controlCommand));
+        return new CommandResponse.Started(controlCommand.runId());
+
     }
 
     @Override

@@ -141,7 +141,6 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
 
     }
 
-    // TODO: need to support "withUnits()" from configuration
 
     private CurrentState generateCurrentStateFromTagItemValues(TagItemValue[] tagItemValues) {
         CurrentState currentState = new CurrentState(prefix, new StateName("PlcTelemetry"));

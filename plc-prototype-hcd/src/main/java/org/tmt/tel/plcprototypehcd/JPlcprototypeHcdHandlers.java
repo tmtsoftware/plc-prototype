@@ -93,9 +93,11 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
     return CompletableFuture.runAsync(() -> {
 
 
+        /* TODO: uncomment when testing of asynchronous reads is complete
         JStatePublisherActor.StartMessage message = new JStatePublisherActor.StartMessage();
 
         statePublisherActor.tell(message);
+        */
 
     });
     }
@@ -123,7 +125,7 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
         // here is where we do the next step
         switch (controlCommand.commandName().name()) {
 
-            case "read":
+            case "readPlc":
                 log.debug("handling read command: " + controlCommand);
 
                 // code for read goes here
@@ -140,7 +142,7 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
                 return new CommandResponse.CompletedWithResult(controlCommand.runId(), result);
 
 
-            case "update":
+            case "writePlc":
                 log.debug("handling update command: " + controlCommand);
 
                 // code for write goes here
