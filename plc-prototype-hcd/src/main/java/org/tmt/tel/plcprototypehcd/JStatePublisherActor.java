@@ -24,6 +24,8 @@ import csw.logging.javadsl.ILogger;
 
 
 import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import csw.params.javadsl.JUnits;
@@ -149,51 +151,20 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
         Parameter timestamp = timestampKey.set(Instant.now());
         currentState = currentState.add(timestamp);
 
-        for (TagItemValue tagItemValue : tagItemValues) {
+        Set<Parameter> parameterSet = Utils.generateParametersFromTagItemValues(tagItemValues);
+        for (Parameter parameter : parameterSet) {
 
-            switch (tagItemValue.javaTypeName) {
-
-                case "Integer":
-                    Key intKey = JKeyType.IntKey().make(tagItemValue.name);
-                    Parameter intParam = intKey.set(new Integer(tagItemValue.value));
-                    intParam = addUnits(intParam, tagItemValue.units);
-                    currentState = currentState.add(intParam);
-                    break;
-
-                case "Float":
-                    Key floatKey = JKeyType.FloatKey().make(tagItemValue.name);
-                    Parameter floatParam = floatKey.set(new Float(tagItemValue.value));
-                    floatParam = addUnits(floatParam, tagItemValue.units);
-                    currentState = currentState.add(floatParam);
-                    break;
-
-                case "Boolean":
-                    Key booleanKey = JKeyType.BooleanKey().make(tagItemValue.name);
-                    Parameter booleanParam = booleanKey.set(new Boolean(tagItemValue.value));
-                    booleanParam = addUnits(booleanParam, tagItemValue.units);
-                    currentState = currentState.add(booleanParam);
-                    break;
-            }
+            currentState = currentState.add(parameter);
 
         }
 
         return currentState;
     }
 
-    private Parameter addUnits(Parameter param, String unitsString) {
-
-        switch(unitsString) {
-
-            case "meters": return param.withUnits(JUnits.meter);
-            case "counts": return param.withUnits(JUnits.count);
-            case "degrees": return param.withUnits(JUnits.degree);
-            case "noUnits" : return param.withUnits(JUnits.NoUnits);
-            default: return param.withUnits(JUnits.NoUnits);
 
 
-        }
 
-    }
+
 
 
 

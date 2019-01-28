@@ -24,6 +24,7 @@ import csw.params.commands.CommandName;
 import csw.params.commands.CommandResponse;
 import csw.params.commands.Setup;
 import csw.params.core.generics.Key;
+import csw.params.core.generics.Parameter;
 import csw.params.core.models.Id;
 import csw.params.core.models.ObsId;
 import csw.params.core.models.Prefix;
@@ -65,12 +66,6 @@ public class CommandClient {
     private Connection.AkkaConnection assemblyConnection = new Connection.AkkaConnection(new ComponentId("JPlcprototypeAssembly", Assembly));
 
 
-
-    private Key<Double> baseKey = JKeyType.DoubleKey().make("base");
-    private Key<Double> capKey = JKeyType.DoubleKey().make("cap");
-    private Key<String> mode = JKeyType.StringKey().make("mode");
-
-
     /**
      * Gets a reference to the running assembly from the location service, if found.
      */
@@ -98,7 +93,7 @@ public class CommandClient {
     /**
      * Sends a read message to the Assembly and returns the response
      */
-    public CompletableFuture<CommandResponse.SubmitResponse> read(Optional<ObsId> obsId) {
+    public CompletableFuture<CommandResponse.SubmitResponse> read(Optional<ObsId> obsId, String[] keyNameArray) {
 
         if (commandServiceOptional.isPresent()) {
 
@@ -106,7 +101,9 @@ public class CommandClient {
             Long[] timeDurationValue = new Long[1];
             timeDurationValue[0] = 10L;
 
-            Setup setup = new Setup(source, new CommandName("readPlc"), obsId);
+            Parameter<String> readParam = JKeyType.StringKey().make("readKeys").set(keyNameArray);
+            Setup setup = new Setup(source, new CommandName("readPlc"), obsId).add(readParam);
+
             log.debug("Submitting read command to assembly...");
 
             return commandService.submit(setup, Timeout.durationToTimeout(FiniteDuration.apply(20, TimeUnit.SECONDS)));
@@ -172,13 +169,19 @@ public class CommandClient {
 
         boolean keepRunning = true;
         while (keepRunning) {
-            log.info(() -> "Type command name [read, write] or type 'exit' to stop client");
+            log.info(() -> "Type command name [read [var-name, ...], write [var-name value, ...]] or type 'exit' to stop client");
 
-            String commandName = scanner.nextLine();
-            switch (commandName) {
+            String command = scanner.nextLine();
+
+            String arr[] = command.split(" ", 2);
+
+            System.out.println("arr[1] = " + arr[1]);
+
+            switch (arr[0]) {
                 case "read":
                     log.info(() -> "Commanding read: ");
-                    CompletableFuture<CommandResponse.SubmitResponse> readCmdResponse = encClient.read(maybeObsId);
+                    String[] keyNames = arr[1].split(",");
+                    CompletableFuture<CommandResponse.SubmitResponse> readCmdResponse = encClient.read(maybeObsId, keyNames);
                     CommandResponse respReadCmd = readCmdResponse.get();
                     log.info(() -> "Read cmd response: " + respReadCmd);
                     break;
@@ -192,7 +195,7 @@ public class CommandClient {
                     keepRunning = false;
                     break;
                 default:
-                    log.info(commandName + "   - Is not a valid choice");
+                    log.info(arr[0] + "   - Is not a valid choice");
             }
         }
 

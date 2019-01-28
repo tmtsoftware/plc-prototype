@@ -1,6 +1,9 @@
 package org.tmt.tel.plcprototypehcd;
 
+import akka.actor.typed.ActorSystem;
 import akka.actor.typed.javadsl.ActorContext;
+import akka.actor.typed.javadsl.AskPattern;
+import akka.util.Timeout;
 import com.typesafe.config.Config;
 import csw.command.client.messages.TopLevelActorMessage;
 import csw.config.api.javadsl.IConfigClientService;
@@ -35,8 +38,10 @@ import csw.params.commands.Result;
 import csw.params.javadsl.JKeyType;
 
 
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -58,6 +63,7 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
     private IConfigClientService clientApi;
     ActorRef<JStatePublisherActor.StatePublisherMessage> statePublisherActor;
 
+    private PlcConfig plcConfig;
 
     JPlcprototypeHcdHandlers(ActorContext<TopLevelActorMessage> ctx,JCswContext cswCtx) {
         super(ctx, cswCtx);
@@ -73,7 +79,7 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
 
         try {
 
-            PlcConfig plcConfig = new PlcConfig(config);
+            plcConfig = new PlcConfig(config);
 
             cacheActor = ctx.spawnAnonymous(JCacheActor.behavior(cswCtx, null));
 
@@ -93,11 +99,10 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
     return CompletableFuture.runAsync(() -> {
 
 
-        /* TODO: uncomment when testing of asynchronous reads is complete
         JStatePublisherActor.StartMessage message = new JStatePublisherActor.StartMessage();
 
         statePublisherActor.tell(message);
-        */
+
 
     });
     }
@@ -130,14 +135,25 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
 
                 // code for read goes here
 
-                String value = "6.4";
+                String[] names = controlCommand.paramSet().head().jValues().toArray(new String[0]);
+
+                // convert from Parameters to tagItemValues (needs PlcConfig)
+                TagItemValue[] tagItemValuesDesired = Utils.generateTagItemValuesFromNames(names, plcConfig);
+
+                // read from the cache
+
+                TagItemValue[] tagItemValuesRead = readTagValues(cacheActor, actorContext.getSystem(), tagItemValuesDesired);
+
+                // convert from tagItemValues to Parameters
+
+                Set<Parameter> parameterSet = Utils.generateParametersFromTagItemValues(tagItemValuesRead);
 
 
-                Key<Double> basePosKey = JKeyType.DoubleKey().make("basePos");
+                Result result = new Result("PlcHcd");
 
-                Parameter<Double> basePosParam = basePosKey.set(new Double(value));
-
-                Result result = new Result("PlcHcd").add(basePosParam);
+                for (Parameter parameter : parameterSet) {
+                    result = result.add(parameter);
+                }
 
                 return new CommandResponse.CompletedWithResult(controlCommand.runId(), result);
 
@@ -220,5 +236,20 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
         return activeFile;
     }
 
+    public static TagItemValue[] readTagValues(ActorRef<JCacheActor.CacheMessage> actorRef, ActorSystem sys, TagItemValue[] tagItemValues) {
+        final JCacheActor.ReadResponseMessage readResponse;
+        try {
+            readResponse = AskPattern.ask(actorRef, (ActorRef<JCacheActor.ReadResponseMessage> replyTo) ->
+                            new JCacheActor.ReadMessage(replyTo, tagItemValues)
+                    , new Timeout(10, TimeUnit.SECONDS), sys.scheduler()).toCompletableFuture().get();
+            //  log.debug(() -> "Got tag values from plcio actor - "
+            return readResponse.tagItemValues;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+
+
+    }
 
 }

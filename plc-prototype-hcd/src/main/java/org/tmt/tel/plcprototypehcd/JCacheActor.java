@@ -1,6 +1,7 @@
 package org.tmt.tel.plcprototypehcd;
 
 
+import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.*;
 import csw.framework.models.JCswContext;
@@ -35,8 +36,18 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
 
     public static final class ReadMessage implements CacheMessage {
         public final TagItemValue[] tagItemValues;
+        public final ActorRef replyTo;
 
-        public ReadMessage(TagItemValue[] tagItemValues) {
+        public ReadMessage(ActorRef replyTo, TagItemValue[] tagItemValues) {
+            this.tagItemValues = tagItemValues;
+            this.replyTo = replyTo;
+        }
+    }
+
+    public static final class ReadResponseMessage implements CacheMessage {
+        public final TagItemValue[] tagItemValues;
+
+        public ReadResponseMessage(TagItemValue[] tagItemValues) {
             this.tagItemValues = tagItemValues;
         }
     }
@@ -76,9 +87,10 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
                 .onMessage(ReadMessage.class,
                         message -> {
                             log.debug(() -> "ReadMessage Received");
-                            TagItemValue[] attributes = readCache(message);
+                            TagItemValue[] tagItemValues = readCache(message);
 
-                            // how do we return the value to the caller?
+                            // send the response back
+                            message.replyTo.tell(new ReadResponseMessage(tagItemValues));
 
                             return Behaviors.same();
                         });
@@ -113,10 +125,13 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
      */
     private TagItemValue[] readCache(ReadMessage readMessage) {
 
+        if (cache == null) return readMessage.tagItemValues;
+
         // populate the message attributes with the values from the cache
         // ignore attributes not in the cache
 
         for (TagItemValue tagItemValue : readMessage.tagItemValues) {
+
             TagItemValue cacheValue = cache.get(tagItemValue.name);
             if (cacheValue != null) {
                 tagItemValue.value = cacheValue.value;
