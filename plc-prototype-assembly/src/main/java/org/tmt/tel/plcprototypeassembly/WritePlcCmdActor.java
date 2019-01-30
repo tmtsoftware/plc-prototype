@@ -1,46 +1,31 @@
 package org.tmt.tel.plcprototypeassembly;
 
 
-
-import akka.actor.typed.ActorRef;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.*;
-import akka.japi.Option;
 import akka.util.Timeout;
 import csw.command.api.javadsl.ICommandService;
-import csw.command.client.CommandResponseManager;
-import csw.command.client.messages.CommandMessage;
 import csw.framework.models.JCswContext;
 import csw.logging.javadsl.ILogger;
-import csw.logging.javadsl.JLoggerFactory;
-import csw.params.commands.CommandName;
 import csw.params.commands.CommandResponse;
 import csw.params.commands.ControlCommand;
-import csw.params.commands.Setup;
-import csw.params.core.generics.Parameter;
 import csw.params.core.models.Id;
-import csw.params.core.models.ObsId;
 import csw.params.core.models.Prefix;
 import scala.concurrent.duration.FiniteDuration;
 
-import javax.sound.midi.ControllerEventListener;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 
-public class ReadPlcCmdActor extends AbstractBehavior<ControlCommand> {
-
-
-
+public class WritePlcCmdActor extends AbstractBehavior<ControlCommand> {
 
     private ActorContext<ControlCommand> actorContext;
     private ILogger log;
-    private Boolean online;
     private JCswContext cswCtx;
     private Optional<ICommandService> plcHcd;
 
-    private ReadPlcCmdActor(ActorContext<ControlCommand> actorContext, JCswContext cswCtx, Optional<ICommandService> plcHcd) {
+    private WritePlcCmdActor(ActorContext<ControlCommand> actorContext, JCswContext cswCtx, Optional<ICommandService> plcHcd) {
         this.actorContext = actorContext;
         this.log = cswCtx.loggerFactory().getLogger(actorContext, getClass());
         this.cswCtx = cswCtx;
@@ -49,7 +34,7 @@ public class ReadPlcCmdActor extends AbstractBehavior<ControlCommand> {
 
     public static <ControlCommand> Behavior<ControlCommand> behavior(JCswContext cswCtx, Optional<ICommandService> plcHcd) {
         return Behaviors.setup(ctx -> {
-            return (AbstractBehavior<ControlCommand>) new ReadPlcCmdActor((ActorContext<csw.params.commands.ControlCommand>) ctx, cswCtx, plcHcd);
+            return (AbstractBehavior<ControlCommand>) new WritePlcCmdActor((ActorContext<csw.params.commands.ControlCommand>) ctx, cswCtx, plcHcd);
         });
     }
 
@@ -60,7 +45,7 @@ public class ReadPlcCmdActor extends AbstractBehavior<ControlCommand> {
         ReceiveBuilder<ControlCommand> builder = receiveBuilder()
                 .onMessage(ControlCommand.class,
                         command -> {
-                            log.debug(() -> "Read Received");
+                            log.debug(() -> "Write Received");
                             handleSubmitCommand(command);
                             return Behaviors.stopped();// actor stops itself, it is meant to only process one command.
                         });
@@ -69,13 +54,13 @@ public class ReadPlcCmdActor extends AbstractBehavior<ControlCommand> {
 
 
 
-    private Prefix templateHcdPrefix = new Prefix("plcAssembly.readActor");
+    private Prefix templateHcdPrefix = new Prefix("plcAssembly.writeActor");
 
 
     private void handleSubmitCommand(ControlCommand message) {
-        CompletableFuture<CommandResponse.SubmitResponse> readFuture = read(message);
+        CompletableFuture<CommandResponse.SubmitResponse> writeFuture = write(message);
 
-        readFuture.thenAccept((response) -> {
+        writeFuture.thenAccept((response) -> {
 
             log.debug(() -> "response = " + response);
             log.debug(() -> "runId = " + message.runId());
@@ -84,13 +69,13 @@ public class ReadPlcCmdActor extends AbstractBehavior<ControlCommand> {
 
             cswCtx.commandResponseManager().updateSubCommand(response);
 
-            log.debug(() -> "read command message handled");
+            log.debug(() -> "write command message handled");
 
 
         });
     }
 
-    CompletableFuture<CommandResponse.SubmitResponse> read (ControlCommand message){
+    CompletableFuture<CommandResponse.SubmitResponse> write (ControlCommand message){
 
         if (plcHcd.isPresent()) {
 

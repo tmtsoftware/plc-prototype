@@ -52,15 +52,30 @@ public class Utils {
     }
 
     public static TagItemValue[] generateTagItemValuesFromNames(String[] names, PlcConfig plcConfig) {
-       List<TagItemValue> tagItemValueList = new ArrayList<TagItemValue>();
+        List<TagItemValue> tagItemValueList = new ArrayList<TagItemValue>();
 
 
-       for (String name : names) {
+        for (String name : names) {
 
-           tagItemValueList.add(plcConfig.name2TagItemValue.get(name));
-       }
+            tagItemValueList.add(plcConfig.name2TagItemValue.get(name));
+        }
 
-       return tagItemValueList.toArray(new TagItemValue[0]);
+        return tagItemValueList.toArray(new TagItemValue[0]);
+    }
+
+    public static TagItemValue[] generateTagItemValuesFromNamesAndValues(String[] names, String[] values, PlcConfig plcConfig) {
+        List<TagItemValue> tagItemValueList = new ArrayList<TagItemValue>();
+
+
+        for (int i=0; i<names.length; i++) {
+
+            TagItemValue tagItemValue = plcConfig.name2TagItemValue.get(names[i]);
+            tagItemValue.value = values[i];
+            tagItemValueList.add(tagItemValue);
+
+        }
+
+        return tagItemValueList.toArray(new TagItemValue[0]);
     }
 
 

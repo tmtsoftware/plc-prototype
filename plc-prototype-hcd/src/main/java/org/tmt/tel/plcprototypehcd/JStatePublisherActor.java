@@ -65,21 +65,24 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
     private static final Object TIMER_KEY = new Object();
 
 
-    private JStatePublisherActor(TimerScheduler<JStatePublisherActor.StatePublisherMessage> timer, JCswContext cswCtx, PlcConfig plcConfig, ActorRef plcioActor) {
+    private JStatePublisherActor(TimerScheduler<JStatePublisherActor.StatePublisherMessage> timer, ActorContext<JStatePublisherActor.StatePublisherMessage> ctx, JCswContext cswCtx, PlcConfig plcConfig, ActorRef plcioActor) {
         this.timer = timer;
-        this.actorContext = actorContext;
         this.log = cswCtx.loggerFactory().getLogger(JCacheActor.class);
         this.currentStatePublisher = cswCtx.currentStatePublisher();
         this.cswCtx = cswCtx;
+        this.actorContext = ctx;
         this.plcioActor = plcioActor;
         this.plcConfig = plcConfig;
 
     }
 
     public static <StatePublisherMessage> Behavior<StatePublisherMessage> behavior(JCswContext cswCtx, PlcConfig plcConfig, ActorRef plcioActor) {
-        return Behaviors.withTimers(timers -> {
-            return (AbstractBehavior<StatePublisherMessage>) new JStatePublisherActor((TimerScheduler<JStatePublisherActor.StatePublisherMessage>) timers, cswCtx, plcConfig, plcioActor);
-        });
+        return Behaviors.withTimers(timers ->
+
+             Behaviors.setup(ctx ->
+                 (AbstractBehavior<StatePublisherMessage>) new JStatePublisherActor((TimerScheduler<JStatePublisherActor.StatePublisherMessage>) timers,
+                        (ActorContext<JStatePublisherActor.StatePublisherMessage>)ctx, cswCtx, plcConfig, plcioActor)));
+
     }
 
 
@@ -130,7 +133,7 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
 
 
         // Read PLC
-        ActorSystem actorSystem = Adapter.toTyped(ClusterAwareSettings.system());
+        ActorSystem actorSystem = actorContext.getSystem();
         TagItemValue[] tagItemValues = readTagValues(plcioActor,  actorSystem, plcConfig.telemetryTagItemValues);
 
         // example parameters for a current state
@@ -160,12 +163,6 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
 
         return currentState;
     }
-
-
-
-
-
-
 
 
     public static TagItemValue[] readTagValues(ActorRef<JPlcioActor.ReadMessage> actorRef, ActorSystem sys, TagItemValue[] tagItemValues) {

@@ -97,13 +97,13 @@ public class JCommandHandlerActor extends AbstractBehavior<JCommandHandlerActor.
 
         log.info("handleWritePlc = " + controlCommand);
 
-        /*
+
         ActorRef<ControlCommand> writePlcCmdActor =
                 actorContext.spawnAnonymous(WritePlcCmdActor.behavior(cswCtx, plcHcd));
 
         writePlcCmdActor.tell(controlCommand);
 
-        */
+
         // TODO: when the command is complete, kill the actor
         // ctx.stop(setTargetWavelengthCmdActor)
 

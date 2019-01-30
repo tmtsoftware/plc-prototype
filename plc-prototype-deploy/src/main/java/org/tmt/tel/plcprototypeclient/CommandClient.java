@@ -118,7 +118,7 @@ public class CommandClient {
     /**
      * Sends a write message to the Assembly and returns the response
      */
-    public CompletableFuture<CommandResponse.SubmitResponse> write(Optional<ObsId> obsId) {
+    public CompletableFuture<CommandResponse.SubmitResponse> write(Optional<ObsId> obsId, String[] writeInfo) {
 
         if (commandServiceOptional.isPresent()) {
 
@@ -126,10 +126,8 @@ public class CommandClient {
             Long[] timeDurationValue = new Long[1];
             timeDurationValue[0] = 10L;
 
-            Setup setup = new Setup(source, new CommandName("write"), obsId);
-
-            // TODO: add some parameters
-
+            Parameter<String> writeParam = JKeyType.StringKey().make("writeKeys").set(writeInfo);
+            Setup setup = new Setup(source, new CommandName("writePlc"), obsId).add(writeParam);
 
             log.debug("Submitting read command to assembly...");
 
@@ -139,7 +137,6 @@ public class CommandClient {
 
             return CompletableFuture.completedFuture(new CommandResponse.Error(new Id(""), "Can't locate Assembly"));
         }
-
 
     }
 
@@ -187,9 +184,10 @@ public class CommandClient {
                     break;
                 case "write":
                     log.info(() -> "Commanding write: ");
-                    CompletableFuture<CommandResponse.SubmitResponse> writeCmdResponse = encClient.write(maybeObsId);
+                    String[] writeInfo = arr[1].split(",");
+                    CompletableFuture<CommandResponse.SubmitResponse> writeCmdResponse = encClient.write(maybeObsId, writeInfo);
                     CommandResponse respWriteCmd = writeCmdResponse.get();
-                    log.info(() -> "Read cmd response: " + respWriteCmd);
+                    log.info(() -> "Write cmd response: " + respWriteCmd);
                     break;
                 case "exit":
                     keepRunning = false;

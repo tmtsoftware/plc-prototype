@@ -82,7 +82,7 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
                         message -> {
                             log.debug(() -> "UpdateMessage Received");
                             Map cache = updateCache(message);
-                            return behavior(cswCtx, cache);
+                            return Behaviors.same();
                         })
                 .onMessage(ReadMessage.class,
                         message -> {

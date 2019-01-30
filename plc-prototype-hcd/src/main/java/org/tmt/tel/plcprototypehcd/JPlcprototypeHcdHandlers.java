@@ -36,8 +36,11 @@ import csw.params.core.generics.Parameter;
 import csw.params.commands.Result;
 
 import csw.params.javadsl.JKeyType;
+import org.tmt.tel.javaplc.ABPlcioMaster;
 
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -62,6 +65,7 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
     private ActorRef<JPlcioActor.PlcioMessage> plcioActor;
     private IConfigClientService clientApi;
     ActorRef<JStatePublisherActor.StatePublisherMessage> statePublisherActor;
+    ABPlcioMaster master;
 
     private PlcConfig plcConfig;
 
@@ -79,11 +83,17 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
 
         try {
 
+
+            log.info("Initializing ABPlcioMaster...");
+            master = new ABPlcioMaster();
+            log.info("Completed...");
+
+
             plcConfig = new PlcConfig(config);
 
             cacheActor = ctx.spawnAnonymous(JCacheActor.behavior(cswCtx, null));
 
-            plcioActor = ctx.spawnAnonymous(JPlcioActor.behavior(cswCtx, plcConfig, cacheActor));
+            plcioActor = ctx.spawnAnonymous(JPlcioActor.behavior(cswCtx, plcConfig, cacheActor, master, false));
 
             statePublisherActor =
                     ctx.spawnAnonymous(JStatePublisherActor.behavior(cswCtx, plcConfig, plcioActor));
@@ -161,7 +171,26 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
             case "writePlc":
                 log.debug("handling update command: " + controlCommand);
 
-                // code for write goes here
+                String[] writeInfoArray = controlCommand.paramSet().head().jValues().toArray(new String[0]);
+
+                List<String> writeNames = new ArrayList<String>();
+                List<String> writeValues = new ArrayList<String>();
+
+                for(String writeInfo: writeInfoArray) {
+                    String arr[] = writeInfo.split(" ", 2);
+                    String name = arr[0];
+                    String value = arr[1];
+                    writeNames.add(name);
+                    writeValues.add(value);
+                }
+
+                TagItemValue[] tagItemValuesToWrite = Utils.generateTagItemValuesFromNamesAndValues(writeNames.toArray(new String[0]),
+                        writeValues.toArray(new String[0]), plcConfig);
+
+
+                plcioActor.tell(new JPlcioActor.WriteMessage(tagItemValuesToWrite));
+
+                // the cache will be updated by the next synchronous read
 
                 return new CommandResponse.Completed(controlCommand.runId());
 
