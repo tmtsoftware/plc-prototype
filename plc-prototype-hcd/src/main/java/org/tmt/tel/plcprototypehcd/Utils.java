@@ -4,6 +4,7 @@ import csw.params.core.generics.Key;
 import csw.params.core.generics.Parameter;
 import csw.params.javadsl.JKeyType;
 import csw.params.javadsl.JUnits;
+import scala.collection.Iterator;
 import scala.collection.JavaConversions;
 
 import java.util.ArrayList;
@@ -51,13 +52,17 @@ public class Utils {
 
     }
 
-    public static TagItemValue[] generateTagItemValuesFromNames(String[] names, PlcConfig plcConfig) {
+
+
+    public static TagItemValue[] generateTagItemValuesFromParameters(scala.collection.immutable.Set<Parameter<?>> parameterSet, PlcConfig plcConfig) {
         List<TagItemValue> tagItemValueList = new ArrayList<TagItemValue>();
 
+        Iterator<Parameter<?>> iterator = parameterSet.iterator();
 
-        for (String name : names) {
+        while (iterator.hasNext()) {
 
-            tagItemValueList.add(plcConfig.name2TagItemValue.get(name));
+            Parameter parameter = iterator.next();
+            tagItemValueList.add(plcConfig.name2TagItemValue.get(parameter.keyName()));
         }
 
         return tagItemValueList.toArray(new TagItemValue[0]);

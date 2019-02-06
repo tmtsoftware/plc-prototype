@@ -93,7 +93,7 @@ public class CommandClient {
     /**
      * Sends a read message to the Assembly and returns the response
      */
-    public CompletableFuture<CommandResponse.SubmitResponse> read(Optional<ObsId> obsId, String[] keyNameArray) {
+    public CompletableFuture<CommandResponse.SubmitResponse> read(Optional<ObsId> obsId, String[] argSets) {
 
         if (commandServiceOptional.isPresent()) {
 
@@ -101,10 +101,33 @@ public class CommandClient {
             Long[] timeDurationValue = new Long[1];
             timeDurationValue[0] = 10L;
 
-            Parameter<String> readParam = JKeyType.StringKey().make("readKeys").set(keyNameArray);
-            Setup setup = new Setup(source, new CommandName("readPlc"), obsId).add(readParam);
+            Setup setup = new Setup(source, new CommandName("readPlc"), obsId);
 
-            log.debug("Submitting read command to assembly...");
+            for (String arg : argSets) {
+                // separate name and type
+                String arr[] = arg.split(" ", 2);
+
+                String name = arr[0];
+                String type = arr[1];
+
+                switch (type) {
+                    case "String":
+                        setup = setup.add(JKeyType.StringKey().make(name).set(""));
+                        break;
+                    case "Int":
+                        setup = setup.add(JKeyType.IntKey().make(name).set(0));
+                        break;
+                    case "Float":
+                        setup = setup.add(JKeyType.FloatKey().make(name).set(0.0f));
+                        break;
+                    default:
+                        break;
+
+                }
+
+            }
+
+            log.info("Submitting read command to assembly: " + setup);
 
             return commandService.submit(setup, Timeout.durationToTimeout(FiniteDuration.apply(20, TimeUnit.SECONDS)));
 
@@ -166,7 +189,7 @@ public class CommandClient {
 
         boolean keepRunning = true;
         while (keepRunning) {
-            log.info(() -> "Type command name [read [var-name, ...], write [var-name value, ...]] or type 'exit' to stop client");
+            log.info(() -> "Type command name [read [var-name type, ...], write [var-name type value, ...]] or type 'exit' to stop client.  \"type\" can be String, Int, Float");
 
             String command = scanner.nextLine();
 
@@ -177,8 +200,8 @@ public class CommandClient {
             switch (arr[0]) {
                 case "read":
                     log.info(() -> "Commanding read: ");
-                    String[] keyNames = arr[1].split(",");
-                    CompletableFuture<CommandResponse.SubmitResponse> readCmdResponse = encClient.read(maybeObsId, keyNames);
+                    String[] argSets = arr[1].split(",");
+                    CompletableFuture<CommandResponse.SubmitResponse> readCmdResponse = encClient.read(maybeObsId, argSets);
                     CommandResponse respReadCmd = readCmdResponse.get();
                     log.info(() -> "Read cmd response: " + respReadCmd);
                     break;

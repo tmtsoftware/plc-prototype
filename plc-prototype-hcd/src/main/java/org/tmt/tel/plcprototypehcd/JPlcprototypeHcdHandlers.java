@@ -5,6 +5,7 @@ import akka.actor.typed.javadsl.ActorContext;
 import akka.actor.typed.javadsl.AskPattern;
 import akka.util.Timeout;
 import com.typesafe.config.Config;
+import csw.command.client.messages.CommandMessage;
 import csw.command.client.messages.TopLevelActorMessage;
 import csw.config.api.javadsl.IConfigClientService;
 import csw.config.client.javadsl.JConfigClientFactory;
@@ -37,9 +38,12 @@ import csw.params.commands.Result;
 
 import csw.params.javadsl.JKeyType;
 import org.tmt.tel.javaplc.ABPlcioMaster;
+import scala.collection.JavaConversions;
+import scala.collection.JavaConverters;
 
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -145,10 +149,9 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
 
                 // code for read goes here
 
-                String[] names = controlCommand.paramSet().head().jValues().toArray(new String[0]);
 
                 // convert from Parameters to tagItemValues (needs PlcConfig)
-                TagItemValue[] tagItemValuesDesired = Utils.generateTagItemValuesFromNames(names, plcConfig);
+                TagItemValue[] tagItemValuesDesired = Utils.generateTagItemValuesFromParameters( controlCommand.paramSet(), plcConfig);
 
                 // read from the cache
 
