@@ -174,21 +174,8 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
             case "writePlc":
                 log.debug("handling update command: " + controlCommand);
 
-                String[] writeInfoArray = controlCommand.paramSet().head().jValues().toArray(new String[0]);
 
-                List<String> writeNames = new ArrayList<String>();
-                List<String> writeValues = new ArrayList<String>();
-
-                for(String writeInfo: writeInfoArray) {
-                    String arr[] = writeInfo.split(" ", 2);
-                    String name = arr[0];
-                    String value = arr[1];
-                    writeNames.add(name);
-                    writeValues.add(value);
-                }
-
-                TagItemValue[] tagItemValuesToWrite = Utils.generateTagItemValuesFromNamesAndValues(writeNames.toArray(new String[0]),
-                        writeValues.toArray(new String[0]), plcConfig);
+                TagItemValue[] tagItemValuesToWrite = Utils.generateTagItemValuesFromParameters(controlCommand.paramSet(), plcConfig);
 
 
                 plcioActor.tell(new JPlcioActor.WriteMessage(tagItemValuesToWrite));

@@ -62,7 +62,9 @@ public class Utils {
         while (iterator.hasNext()) {
 
             Parameter parameter = iterator.next();
-            tagItemValueList.add(plcConfig.name2TagItemValue.get(parameter.keyName()));
+            TagItemValue tagItemValue = plcConfig.name2TagItemValue.get(parameter.keyName());
+            tagItemValue.value = "" + parameter.value(0);
+            tagItemValueList.add(tagItemValue);
         }
 
         return tagItemValueList.toArray(new TagItemValue[0]);

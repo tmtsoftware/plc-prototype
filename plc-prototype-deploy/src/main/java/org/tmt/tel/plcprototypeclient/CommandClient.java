@@ -141,7 +141,7 @@ public class CommandClient {
     /**
      * Sends a write message to the Assembly and returns the response
      */
-    public CompletableFuture<CommandResponse.SubmitResponse> write(Optional<ObsId> obsId, String[] writeInfo) {
+    public CompletableFuture<CommandResponse.SubmitResponse> write(Optional<ObsId> obsId, String[] argSets) {
 
         if (commandServiceOptional.isPresent()) {
 
@@ -149,8 +149,33 @@ public class CommandClient {
             Long[] timeDurationValue = new Long[1];
             timeDurationValue[0] = 10L;
 
-            Parameter<String> writeParam = JKeyType.StringKey().make("writeKeys").set(writeInfo);
-            Setup setup = new Setup(source, new CommandName("writePlc"), obsId).add(writeParam);
+
+            Setup setup = new Setup(source, new CommandName("writePlc"), obsId);
+
+            for (String arg : argSets) {
+                // separate name and type
+                String arr[] = arg.split(" ", 3);
+
+                String name = arr[0];
+                String type = arr[1];
+                String value = arr[2];
+
+                switch (type) {
+                    case "String":
+                        setup = setup.add(JKeyType.StringKey().make(name).set(value));
+                        break;
+                    case "Int":
+                        setup = setup.add(JKeyType.IntKey().make(name).set(new Integer(value)));
+                        break;
+                    case "Float":
+                        setup = setup.add(JKeyType.FloatKey().make(name).set(new Float(value)));
+                        break;
+                    default:
+                        break;
+
+                }
+
+            }
 
             log.debug("Submitting read command to assembly...");
 
