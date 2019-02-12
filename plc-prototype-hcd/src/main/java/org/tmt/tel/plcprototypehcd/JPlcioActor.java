@@ -23,6 +23,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
     PlcConfig plcConfig;
     private ActorRef<JCacheActor.CacheMessage> cacheActor;
     private boolean connectionOpen;
+    private boolean initialized;
 
 
 
@@ -59,7 +60,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
 
     private JPlcioActor(ActorContext<JPlcioActor.PlcioMessage> actorContext, JCswContext cswCtx, PlcConfig plcConfig, ActorRef<JCacheActor.CacheMessage> cacheActor,
-                        IABPlcioMaster master, boolean connectionOpen) {
+                        IABPlcioMaster master, boolean connectionOpen, boolean initialized) {
         this.actorContext = actorContext;
         this.cswCtx = cswCtx;
         this.log = cswCtx.loggerFactory().getLogger(JPlcioActor.class);
@@ -67,20 +68,38 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
         this.cacheActor = cacheActor;
         this.connectionOpen = connectionOpen;
         this.master = master;
+        this.initialized = initialized;
 
 
+        if (!initialized) {
+
+            // get all the tag item values known to the HCD
+            TagItemValue[] tagItemValues = plcConfig.name2TagItemValue.values().toArray(new TagItemValue[0]);
+
+            try {
+
+                readPlcTagItems(tagItemValues);
+
+                // initialize the Cache
+                cacheActor.tell(new JCacheActor.UpdateMessage(tagItemValues));
 
 
+            } catch (Exception e) {
+                log.error(e.getMessage());
+                e.printStackTrace();
+            }
 
+            this.initialized = true;
+        }
 
 
 
         log.info("Cache Actor Created");
     }
 
-    public static <PlcioMessage> Behavior<PlcioMessage> behavior(JCswContext cswCtx, PlcConfig plcConfig, ActorRef<JCacheActor.CacheMessage> cacheActor, IABPlcioMaster master, boolean connectionOpen) {
+    public static <PlcioMessage> Behavior<PlcioMessage> behavior(JCswContext cswCtx, PlcConfig plcConfig, ActorRef<JCacheActor.CacheMessage> cacheActor, IABPlcioMaster master, boolean connectionOpen, boolean initialized) {
         return Behaviors.setup(ctx -> {
-            return (AbstractBehavior<PlcioMessage>) new JPlcioActor((ActorContext<JPlcioActor.PlcioMessage>) ctx, cswCtx, plcConfig, cacheActor, master, connectionOpen);
+            return (AbstractBehavior<PlcioMessage>) new JPlcioActor((ActorContext<JPlcioActor.PlcioMessage>) ctx, cswCtx, plcConfig, cacheActor, master, connectionOpen, initialized);
         });
     }
 
@@ -96,16 +115,13 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
                         message -> {
                             log.debug(() -> "UpdateMessage Received");
                             writePlc(message);
-                            return Behavior.same();
+                            return behavior(cswCtx, plcConfig, cacheActor, master, connectionOpen, initialized);
                         })
                 .onMessage(ReadMessage.class,
                         message -> {
                             log.debug(() -> "ReadMessage Received");
                             readPlc(message);
-
-                            // how do we return the value to the caller?
-
-                            return Behavior.same();
+                            return behavior(cswCtx, plcConfig, cacheActor, master, connectionOpen, initialized);
                         });
         return builder.build();
     }
@@ -151,8 +167,10 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
                 plcTag.setTagItemValue(tagItemValue.name, tagItemValue.value);
 
             }
-
             writeTagSet(tagName2PlcTag.values());
+
+            // update the Cache
+            cacheActor.tell(new JCacheActor.UpdateMessage(writeMessage.tagItemValues));
 
 
         } catch (Exception e) {
@@ -171,54 +189,11 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
         // the read message contains each value to be read.
         // Its better to read the whole tag once than read parts of it over and over.
 
-        // get the unique set of tag names to read
-        Map<String, Set<TagItemValue>> tagInfoMap = new HashMap<String, Set<TagItemValue>>();
-        for (TagItemValue tagItemValue : readMessage.tagItemValues) {
-            Set<TagItemValue> itemValueSet = tagInfoMap.get(tagItemValue.tagName);
-            if (itemValueSet == null) {
-                itemValueSet = new HashSet<TagItemValue>();
-                tagInfoMap.put(tagItemValue.tagName, itemValueSet);
-            }
-            itemValueSet.add(tagItemValue);
-
-        }
-
-
 
         try {
 
+            readPlcTagItems(readMessage.tagItemValues);
 
-            if (!connectionOpen) {
-                // open PLC channel
-                PlcioCall plcioCallOpen = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_OPEN, "cip 192.168.1.20",
-                        "plcConnection", 0);
-
-                master.plcAccess(plcioCallOpen);
-
-                connectionOpen = true;
-            }
-
-
-            Map<String, PlcTag> tagName2PlcTag = readTagSet(tagInfoMap, plcConfig);
-
-            //PlcioCall plcioCallClose = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_CLOSE, "cip 192.168.1.20",
-            //        "readPlcConnection", 0);
-            //master.plcAccess(plcioCallClose);
-
-            // tagSet now has populated tag item values for each tag that was read
-
-
-            for (TagItemValue tagItemValue : readMessage.tagItemValues) {
-
-                PlcTag plcTag = tagName2PlcTag.get(tagItemValue.tagName);
-
-                String value = plcTag.getTagItemValue(tagItemValue.name);
-
-                log.debug("PLCIO ACTOR::readPlc::value = " + value);
-
-                tagItemValue.value = value;
-
-            }
 
             // send the response back
             readMessage.replyTo.tell(new ReadResponseMessage(readMessage.tagItemValues));
@@ -234,6 +209,60 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
         }
 
     }
+
+
+    private void readPlcTagItems(TagItemValue[] tagItemValues) throws Exception {
+
+        // get the unique set of tag names to read
+        Map<String, Set<TagItemValue>> tagInfoMap = new HashMap<String, Set<TagItemValue>>();
+        for (TagItemValue tagItemValue : tagItemValues) {
+            Set<TagItemValue> itemValueSet = tagInfoMap.get(tagItemValue.tagName);
+            if (itemValueSet == null) {
+                itemValueSet = new HashSet<TagItemValue>();
+                tagInfoMap.put(tagItemValue.tagName, itemValueSet);
+            }
+            itemValueSet.add(tagItemValue);
+
+        }
+
+
+
+
+        if (!connectionOpen) {
+            // open PLC channel
+            PlcioCall plcioCallOpen = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_OPEN, "cip 192.168.1.20",
+                    "plcConnection", 0);
+
+            master.plcAccess(plcioCallOpen);
+
+            connectionOpen = true;
+        }
+
+
+        Map<String, PlcTag> tagName2PlcTag = readTagSet(tagInfoMap, plcConfig);
+
+        //PlcioCall plcioCallClose = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_CLOSE, "cip 192.168.1.20",
+        //        "readPlcConnection", 0);
+        //master.plcAccess(plcioCallClose);
+
+        // tagSet now has populated tag item values for each tag that was read
+
+
+        for (TagItemValue tagItemValue : tagItemValues) {
+
+            PlcTag plcTag = tagName2PlcTag.get(tagItemValue.tagName);
+
+            String value = plcTag.getTagItemValue(tagItemValue.name);
+
+            log.debug("PLCIO ACTOR::readPlc::value = " + value);
+
+            tagItemValue.value = value;
+
+        }
+
+    }
+
+
 
     private Map<String, PlcTag> readTagSet(Map<String, Set<TagItemValue>> tagInfoMap, PlcConfig plcConfig) throws Exception {
         // Read each tag

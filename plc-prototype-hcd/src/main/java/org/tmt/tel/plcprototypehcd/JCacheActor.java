@@ -81,18 +81,18 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
                 .onMessage(UpdateMessage.class,
                         message -> {
                             log.debug(() -> "UpdateMessage Received");
-                            Map cache = updateCache(message);
-                            return Behaviors.same();
+                            updateCache(message);
+                            return behavior(cswCtx, cache);
                         })
                 .onMessage(ReadMessage.class,
                         message -> {
-                            log.debug(() -> "ReadMessage Received");
+                            log.debug(() -> "ReadMessage Received: cache = " + cache);
                             TagItemValue[] tagItemValues = readCache(message);
 
                             // send the response back
                             message.replyTo.tell(new ReadResponseMessage(tagItemValues));
 
-                            return Behaviors.same();
+                            return behavior(cswCtx, cache);
                         });
         return builder.build();
     }
@@ -101,22 +101,26 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
      * This method processes updates to the cache.
      * @param updateMessage
      */
-    private Map updateCache(UpdateMessage updateMessage) {
+    private void updateCache(UpdateMessage updateMessage) {
 
         // an attribute is a value that contains a String value, String type and String name
         // it also contains methods to extract Float, Int and Boolean values
 
         // if this.cache == null create it
-        if (this.cache == null) {
+        if (cache == null) {
             cache = new HashMap<String, TagItemValue>();
         }
 
         // update the cache with the values from the message
         for (TagItemValue tagItemValue : updateMessage.tagItemValues) {
-            cache.put(tagItemValue.name, tagItemValue);
+
+            // new tag item values need to be created for the cache or else they might be updated elsewhere
+
+            cache.put(tagItemValue.name, tagItemValue.clone());
         }
 
-        return cache;
+        log.debug("updateCache::cache = " + cache);
+
     }
 
     /**
@@ -124,6 +128,8 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
      * @param readMessage
      */
     private TagItemValue[] readCache(ReadMessage readMessage) {
+
+        log.debug("cache = " + cache);
 
         if (cache == null) return readMessage.tagItemValues;
 
@@ -133,11 +139,11 @@ public class JCacheActor extends AbstractBehavior<JCacheActor.CacheMessage> {
         for (TagItemValue tagItemValue : readMessage.tagItemValues) {
 
             TagItemValue cacheValue = cache.get(tagItemValue.name);
+            log.debug("read cache value = " + cacheValue.name + " = " + cacheValue.value);
             if (cacheValue != null) {
                 tagItemValue.value = cacheValue.value;
             }
         }
-
 
         return readMessage.tagItemValues;
     }

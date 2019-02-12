@@ -103,4 +103,16 @@ public class TagItemValue {
         throw new Exception("Can only get float values for BOOLEAN types. Type for " + name + " is " + type);
     }
 
+
+    @Override
+    public String toString() {
+        return "TagItemValue: " + name + ", " + value + ", " + javaTypeName;
+    }
+
+    @Override
+    public TagItemValue clone() {
+        TagItemValue tagItemValue = new TagItemValue(name, javaTypeName, tagName, tagMemberNumber, bitPosition, units);
+        tagItemValue.value = this.value;
+        return tagItemValue;
+    }
 }
