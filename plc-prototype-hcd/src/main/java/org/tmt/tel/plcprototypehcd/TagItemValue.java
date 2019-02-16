@@ -106,7 +106,7 @@ public class TagItemValue {
 
     @Override
     public String toString() {
-        return "TagItemValue: " + name + ", " + value + ", " + javaTypeName;
+        return "TagItemValue: " + name + ", " + value + ", " + javaTypeName + ", " + tagName + ", " + tagMemberNumber + ", " + bitPosition;
     }
 
     @Override

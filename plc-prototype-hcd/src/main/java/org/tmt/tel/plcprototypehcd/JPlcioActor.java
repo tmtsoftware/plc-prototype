@@ -254,9 +254,9 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
             String value = plcTag.getTagItemValue(tagItemValue.name);
 
-            log.debug("PLCIO ACTOR::readPlc::value = " + value);
-
             tagItemValue.value = value;
+
+            log.debug("PLCIO ACTOR::readPlc:: " + tagItemValue);
 
         }
 
@@ -282,6 +282,8 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
             // the API requires an array
             TagItem[] tagItemArray = tagItemList.toArray(new TagItem[0]);
 
+
+            log.debug("readTagSet:: tag = " + tagName + ", items = " + tagItemArray.length);
 
             // create the plcTag that will be passed to the lower level API
 

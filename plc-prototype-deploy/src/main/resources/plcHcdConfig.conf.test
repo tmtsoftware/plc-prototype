@@ -1,0 +1,78 @@
+plcHcdConfig = {
+  plcParam1: "somevalue"
+  tags: [
+    {
+      Name = "Scott_R"
+      PcFormat = "r"
+    },
+    {
+      Name = "Scott_D"
+      PcFormat = "j"
+    },
+    {
+      Name = "Scott_B"
+      PcFormat = "c"
+    },
+    {
+      Name = "Scott_U"
+      PcFormat = "jjr"
+    }
+  ]
+  variables: [
+    {
+      Name = "myDecimalValue"
+      Tag = "Scott_D"
+      TagMemberNumber = "0"
+      JavaType = "Integer"
+      IsBoolean = "false"
+      BitPosition = "0"
+      Units = "counts"
+    },
+    {
+      Name = "myRealValue"
+      Tag = "Scott_R"
+      TagMemberNumber = "0"
+      JavaType = "Float"
+      IsBoolean = "false"
+      BitPosition = "0"
+      Units = "degrees"
+    },
+    {
+      Name = "myBooleanValue"
+      Tag = "Scott_B"
+      TagMemberNumber = "0"
+      JavaType = "Boolean"
+      IsBoolean = "false"
+      BitPosition = "0"
+      Units = "noUnits"
+    },
+    {
+      Name = "compoundBooleanValue"
+      Tag = "Scott_U"
+      TagMemberNumber = "0"
+      JavaType = "Boolean"
+      IsBoolean = "false"
+      BitPosition = "0"
+      Units = "noUnits"
+    },
+    {
+      Name = "compoundDecimalValue"
+      Tag = "Scott_U"
+      TagMemberNumber = "1"
+      JavaType = "Integer"
+      IsBoolean = "false"
+      BitPosition = "0"
+      Units = "counts"
+    },
+    {
+      Name = "compoundRealValue"
+      Tag = "Scott_U"
+      TagMemberNumber = "2"
+      JavaType = "Float"
+      IsBoolean = "false"
+      BitPosition = "0"
+      Units = "meters"
+    }
+  ]
+  telemetry: "myRealValue, compoundDecimalValue, compoundBooleanValue"
+}
