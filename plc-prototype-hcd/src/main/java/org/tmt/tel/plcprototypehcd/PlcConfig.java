@@ -15,8 +15,6 @@ public class PlcConfig {
 
     public PlcConfig(Config hcdConfig) throws Exception {
 
-        telemetryTagItemValues = setupTelemetryTagItemValues(hcdConfig);
-
 
         // Generate the map of tags to TagMetadata
         for (ConfigObject configObject : hcdConfig.getObjectList("plcHcdConfig.tags")) {
@@ -57,7 +55,7 @@ public class PlcConfig {
 
         }
 
-
+        telemetryTagItemValues = setupTelemetryTagItemValues(hcdConfig);
 
 
     }
@@ -68,31 +66,21 @@ public class PlcConfig {
 
         // determine from the configuration the list of telemetry items and their tag metadata
 
-
-        // generate the map of name to tagItemValue
-        for (ConfigObject configObject : hcdConfig.getObjectList("plcHcdConfig.variables")) {
-
-            String name = configObject.toConfig().getString("Name");
-            String tagName = configObject.toConfig().getString("Tag");
-            int tagMemberNumber = configObject.toConfig().getInt("TagMemberNumber");
-            String javaTypeName = configObject.toConfig().getString("JavaType");
-            boolean isBoolean = configObject.toConfig().getBoolean("IsBoolean");
-            int bitPosition = configObject.toConfig().getInt("BitPosition");
-            String units = configObject.toConfig().getString("Units");
-
-            TagItemValue tagItemValue = new TagItemValue(name, javaTypeName, tagName, tagMemberNumber, bitPosition, units);
-
-            name2TagItemValue.put(name, tagItemValue);
-
-         }
-
         String telemetryItemListStr = hcdConfig.getString("plcHcdConfig.telemetry");
         List<String> telemetryItemList = Arrays.asList(telemetryItemListStr.replaceAll("\\s","").split(","));
 
         // construct the array of TagItemValues to read as telemetry
         List telemetryReadList = new ArrayList<TagItemValue>();
         for (String name : telemetryItemList) {
-            telemetryReadList.add(name2TagItemValue.get(name));
+            // if name is a tag name, use all the tag item values it contains
+            List<TagItemValue> tagItemValueList = tag2ItemValueList.get(name);
+            if (tagItemValueList == null) {
+                // this is a tag item name
+                telemetryReadList.add(name2TagItemValue.get(name));
+            } else {
+                // add all the tag items in the tag
+                telemetryReadList.addAll(tagItemValueList);
+            }
         }
 
         return (TagItemValue[])telemetryReadList.toArray(new TagItemValue[0]);
