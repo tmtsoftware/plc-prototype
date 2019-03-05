@@ -133,15 +133,30 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
     private void writePlc(WriteMessage writeMessage) {
 
         // get the unique set of tag names to write
-        Map<String, Set<TagItemValue>> tagInfoMap = new HashMap<String, Set<TagItemValue>>();
+        Map<String, Set<TagItemValue>> tagReadWriteMap = new HashMap<String, Set<TagItemValue>>();
+        Map<String, Set<TagItemValue>> tagWriteOnlyMap = new HashMap<String, Set<TagItemValue>>();
         for (TagItemValue tagItemValue : writeMessage.tagItemValues) {
-            Set<TagItemValue> itemValueSet = tagInfoMap.get(tagItemValue.tagName);
-            if (itemValueSet == null) {
-                itemValueSet = new HashSet<TagItemValue>();
-                tagInfoMap.put(tagItemValue.tagName, itemValueSet);
+            Set<TagItemValue> itemValueSet = tagReadWriteMap.get(tagItemValue.tagName);
+
+            // we either store into a map to be read and then written or a map to be just written
+            if (plcConfig.tag2ItemValueList.get(tagItemValue.tagName).size() == 1) {
+
+                // if a tag contains only one tag item then we can write without reading first
+                if (itemValueSet == null) {
+                    itemValueSet = new HashSet<TagItemValue>();
+                    tagWriteOnlyMap.put(tagItemValue.tagName, itemValueSet);
+                }
+
+            } else {
+
+                if (itemValueSet == null) {
+                    itemValueSet = new HashSet<TagItemValue>();
+                    tagReadWriteMap.put(tagItemValue.tagName, itemValueSet);
+                }
             }
             itemValueSet.add(tagItemValue);
         }
+
 
         try {
 
@@ -157,16 +172,36 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
             }
 
             // read the appropriate tags from the PLC
-            Map<String, PlcTag> tagName2PlcTag = readTagSet(tagInfoMap, plcConfig);
+            Map<String, PlcTag> tagName2PlcTag = readTagSet(tagReadWriteMap, plcConfig);
 
             // write new values for those tag members being updated
             // this includes setting bits for boolean values while leaving existing member bits alone
             for (TagItemValue tagItemValue : writeMessage.tagItemValues) {
 
-                PlcTag plcTag = tagName2PlcTag.get(tagItemValue.tagName);
-                plcTag.setTagItemValue(tagItemValue.name, tagItemValue.value);
+                // omit single valued tags dealt with later
+                if (plcConfig.tag2ItemValueList.get(tagItemValue.tagName).size() > 1) {
+                    PlcTag plcTag = tagName2PlcTag.get(tagItemValue.tagName);
+                    plcTag.setTagItemValue(tagItemValue.name, tagItemValue.value);
+
+                }
 
             }
+
+            // set up writes for single-valued tags that don't require reading first
+            for (String tagName : tagWriteOnlyMap.keySet()) {
+
+                PlcTag plcTag = generatePlcTag(tagName, plcConfig);
+
+                TagItemValue tagItemValue = tagWriteOnlyMap.get(tagName).iterator().next();
+
+                plcTag.setTagItemValue(tagItemValue.name, tagItemValue.value);
+
+                // add to the map
+                tagName2PlcTag.put(tagName, plcTag);
+            }
+
+
+
             writeTagSet(tagName2PlcTag.values());
 
             // update the Cache
@@ -262,33 +297,38 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
     }
 
+    private PlcTag generatePlcTag(String tagName, PlcConfig plcConfig) throws Exception {
 
+        TagMetadata tagMetadata = plcConfig.tag2meta.get(tagName);
+        List<TagItemValue> tagItems = plcConfig.tag2ItemValueList.get(tagName);
+
+        // create all the TagItems for the read
+        List<TagItem> tagItemList = new ArrayList<TagItem>();
+        for (TagItemValue tagItemValue : tagItems) {
+            TagItem tagItem = new TagItem(tagItemValue.name, tagItemValue.getPlcTypeString(), tagItemValue.tagMemberNumber,
+                    tagMetadata.pcFormat.charAt(tagItemValue.tagMemberNumber), 0, tagItemValue.bitPosition);
+            tagItemList.add(tagItem);
+        }
+        // the API requires an array
+        TagItem[] tagItemArray = tagItemList.toArray(new TagItem[0]);
+
+
+        log.debug("readTagSet:: tag = " + tagName + ", items = " + tagItemArray.length);
+
+        // create the plcTag that will be passed to the lower level API
+
+        PlcTag plcTag = new PlcTag(tagName, tagMetadata.pcFormat,
+                10000, tagMetadata.memberCount, tagMetadata.byteLength, tagItemArray);
+
+        return plcTag;
+    }
 
     private Map<String, PlcTag> readTagSet(Map<String, Set<TagItemValue>> tagInfoMap, PlcConfig plcConfig) throws Exception {
         // Read each tag
         Map<String, PlcTag> tagName2PlcTag = new HashMap<String, PlcTag>();
         for (String tagName : tagInfoMap.keySet()) {
 
-            TagMetadata tagMetadata = plcConfig.tag2meta.get(tagName);
-            List<TagItemValue> tagItems = plcConfig.tag2ItemValueList.get(tagName);
-
-            // create all the TagItems for the read
-            List<TagItem> tagItemList = new ArrayList<TagItem>();
-            for (TagItemValue tagItemValue : tagItems) {
-                TagItem tagItem = new TagItem(tagItemValue.name, tagItemValue.getPlcTypeString(), tagItemValue.tagMemberNumber,
-                        tagMetadata.pcFormat.charAt(tagItemValue.tagMemberNumber), 0, tagItemValue.bitPosition);
-                tagItemList.add(tagItem);
-            }
-            // the API requires an array
-            TagItem[] tagItemArray = tagItemList.toArray(new TagItem[0]);
-
-
-            log.debug("readTagSet:: tag = " + tagName + ", items = " + tagItemArray.length);
-
-            // create the plcTag that will be passed to the lower level API
-
-            PlcTag plcTag = new PlcTag(tagName, tagMetadata.pcFormat,
-                    10000, tagMetadata.memberCount, tagMetadata.byteLength, tagItemArray);
+            PlcTag plcTag = generatePlcTag(tagName, plcConfig);
 
             tagName2PlcTag.put(tagName, plcTag);
 
