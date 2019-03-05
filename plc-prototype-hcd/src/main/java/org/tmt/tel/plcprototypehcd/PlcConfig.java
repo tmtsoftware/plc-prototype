@@ -7,6 +7,10 @@ import java.util.*;
 
 public class PlcConfig {
 
+    String plcIP;
+    String plcModule;
+    String plcAddress;
+
     TagItemValue[] telemetryTagItemValues;
     HashMap<String, TagItemValue> name2TagItemValue = new HashMap<String, TagItemValue>();
     Map<String, TagMetadata> tag2meta = new HashMap<String, TagMetadata>();
@@ -58,6 +62,10 @@ public class PlcConfig {
         telemetryTagItemValues = setupTelemetryTagItemValues(hcdConfig);
 
 
+        plcIP = hcdConfig.getString("plcHcdConfig.plcIP");
+        plcModule = hcdConfig.getString("plcHcdConfig.module");
+
+        plcAddress = plcModule + " " + plcIP;
     }
 
 

@@ -163,7 +163,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
             if (!connectionOpen) {
                 // open PLC channel
-                PlcioCall plcioCallOpen = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_OPEN, "cip 192.168.1.20",
+                PlcioCall plcioCallOpen = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_OPEN, plcConfig.plcAddress,
                         "plcConnection", 0);
 
                 master.plcAccess(plcioCallOpen);
@@ -265,7 +265,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
         if (!connectionOpen) {
             // open PLC channel
-            PlcioCall plcioCallOpen = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_OPEN, "cip 192.168.1.20",
+            PlcioCall plcioCallOpen = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_OPEN, plcConfig.plcAddress,
                     "plcConnection", 0);
 
             master.plcAccess(plcioCallOpen);
@@ -276,7 +276,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
         Map<String, PlcTag> tagName2PlcTag = readTagSet(tagInfoMap, plcConfig);
 
-        //PlcioCall plcioCallClose = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_CLOSE, "cip 192.168.1.20",
+        //PlcioCall plcioCallClose = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_CLOSE, plcConfig.plcAddress,
         //        "readPlcConnection", 0);
         //master.plcAccess(plcioCallClose);
 
@@ -332,7 +332,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
             tagName2PlcTag.put(tagName, plcTag);
 
-            PlcioCall plcioCallRead = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_READ, "cip 192.168.1.20",
+            PlcioCall plcioCallRead = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_READ, plcConfig.plcAddress,
                     "plcConnection", 0, plcTag);
 
             master.plcAccess(plcioCallRead);
@@ -348,7 +348,7 @@ public class JPlcioActor extends AbstractBehavior<JPlcioActor.PlcioMessage> {
 
         for (PlcTag plcTag : plcTagCollection) {
 
-            PlcioCall plcioCallWrite = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_WRITE, "cip 192.168.1.20",
+            PlcioCall plcioCallWrite = new PlcioCall(IPlcioCall.PlcioMethodName.PLC_WRITE, plcConfig.plcAddress,
                     "plcConnection", 0, plcTag);
 
             master.plcAccess(plcioCallWrite);
