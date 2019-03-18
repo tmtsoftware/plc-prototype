@@ -56,6 +56,7 @@ cd plc-prototype-deploy/target/universal/stage/bin
 ## Sending commands from the client program
 
 cd plc-prototype-deploy/target/universal/stage/bin
+
 ./command-client
 
 
