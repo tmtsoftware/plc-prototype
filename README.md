@@ -1,7 +1,9 @@
 # plc-prototype
 
 This project implements an HCD (Hardware Control Daemon) and an Assembly using 
-TMT Common Software ([CSW](https://github.com/tmtsoftware/csw)) APIs. 
+TMT Common Software ([CSW](https://github.com/tmtsoftware/csw)) APIs.   The HCD
+communicates with a PLC, provides configurable telemetry and supports external
+read and write commands.
 
 ## Subprojects
 
@@ -12,7 +14,9 @@ TMT Common Software ([CSW](https://github.com/tmtsoftware/csw)) APIs.
 ## Build Instructions
 
 The build is based on sbt and depends on libraries generated from the 
-[csw](https://github.com/tmtsoftware/csw) project.
+[csw](https://github.com/tmtsoftware/csw) project, and the javaplc library.
+
+To include the javaplc library in the build, clone the project and run: sbt publishLocal
 
 See [here](https://www.scala-sbt.org/1.0/docs/Setup.html) for instructions on installing sbt.
 
@@ -30,29 +34,26 @@ If you are not building csw from the sources, you can get the script as follows:
 
 ## Building the HCD and Assembly Applications
 
- - Run `sbt plc-prototype-deploy/universal:packageBin`, this will create self contained zip in `plc-prototype-deploy/target/universal` directory
- - Unzip the generated zip and cd into the bin directory
+ run `sbt stage`, which installs the applications locally in ./target/universal/stage/bin.
 
-Note: An alternative method is to run `sbt stage`, which installs the applications locally in ./target/universal/stage/bin.
+## Setup initial PLC configuration
+
+The provided example configuration works the the PLC in the TMT project office lab.  This configuration will need to be
+stored into the configuration service.   A script has been provided for this:
+
+cd plc-prototype-deploy/src/main/resources
+./initialize-config.sh <IP address of configuration service>
 
 ## Running the HCD and Assembly
 
-Run the container cmd script with arguments. For example:
+cd plc-prototype-deploy/target/universal/stage/bin
 
-* Run the HCD in standalone mode with a local config file (The standalone config format is differennt than the container format):
+./plcprototype-container-cmd-app --local ../../../../src/main/resources/JPlcprototypeContainer.conf
 
-```
-./target/universal/stage/bin/plcprototype-container-cmd-app --standalone --local ./src/main/resources/SampleHcdStandalone.conf
-```
+## Sending commands from the client program
 
-* Start the HCD and assembly in a container using the Java implementations:
+cd plc-prototype-deploy/target/universal/stage/bin
+./command-client
 
-```
-./target/universal/stage/bin/plcprototype-container-cmd-app --local ./src/main/resources/JSampleContainer.conf
-```
 
-* Or the Scala versions:
-
-```
-./target/universal/stage/bin/plcprototype-container-cmd-app --local ./src/main/resources/SampleContainer.conf
 ```
