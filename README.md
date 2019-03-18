@@ -20,6 +20,11 @@ To include the javaplc library in the build, clone the project and run: sbt publ
 
 See [here](https://www.scala-sbt.org/1.0/docs/Setup.html) for instructions on installing sbt.
 
+## Building the HCD and Assembly Applications
+
+ run `sbt stage`, which installs the applications locally in ./target/universal/stage/bin.
+
+
 ## Prerequisites for running Components
 
 The CSW services need to be running before starting the components. 
@@ -32,9 +37,6 @@ If you are not building csw from the sources, you can get the script as follows:
  - Run `./csw_services.sh --help` to get more information.
  - Run `./csw_services.sh start` to start the location service and config server.
 
-## Building the HCD and Assembly Applications
-
- run `sbt stage`, which installs the applications locally in ./target/universal/stage/bin.
 
 ## Setup initial PLC configuration
 
