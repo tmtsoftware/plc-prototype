@@ -44,6 +44,7 @@ The provided example configuration works the the PLC in the TMT project office l
 stored into the configuration service.   A script has been provided for this:
 
 cd plc-prototype-deploy/src/main/resources
+
 ./initialize-config.sh <IP address of configuration service>
 
 ## Running the HCD and Assembly
