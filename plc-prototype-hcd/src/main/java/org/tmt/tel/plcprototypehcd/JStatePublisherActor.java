@@ -115,7 +115,7 @@ public class JStatePublisherActor extends AbstractBehavior<JStatePublisherActor.
 
         log.info("Start Message Received ");
 
-        timer.startPeriodicTimer(TIMER_KEY, new PublishMessage(), java.time.Duration.ofSeconds(1));
+        timer.startPeriodicTimer(TIMER_KEY, new PublishMessage(), java.time.Duration.ofMillis(plcConfig.telemetryClockMs));
 
         log.info("start message completed");
 

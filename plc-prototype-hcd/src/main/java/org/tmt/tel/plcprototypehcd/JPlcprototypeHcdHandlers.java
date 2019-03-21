@@ -13,6 +13,7 @@ import csw.framework.javadsl.JComponentHandlers;
 import csw.framework.models.JCswContext;
 import csw.location.api.models.TrackingEvent;
 import csw.logging.javadsl.ILogger;
+import csw.params.commands.CommandIssue;
 import csw.params.commands.CommandResponse;
 import csw.params.commands.ControlCommand;
 
@@ -36,6 +37,7 @@ import csw.params.core.generics.Parameter;
 
 import csw.params.commands.Result;
 
+import csw.params.core.models.Id;
 import csw.params.javadsl.JKeyType;
 import org.tmt.tel.javaplc.ABPlcioMaster;
 import scala.collection.JavaConversions;
@@ -174,7 +176,9 @@ public class JPlcprototypeHcdHandlers extends JComponentHandlers {
             case "writePlc":
                 log.debug("handling update command: " + controlCommand);
 
-
+                if (plcConfig.readOnly) {
+                    return new CommandResponse.Invalid(controlCommand.runId(), new CommandIssue.UnsupportedCommandInStateIssue("HCD is configured READ ONLY"));
+                }
                 TagItemValue[] tagItemValuesToWrite = Utils.generateTagItemValuesFromParameters(controlCommand.paramSet(), plcConfig);
 
 

@@ -10,6 +10,8 @@ public class PlcConfig {
     String plcIP;
     String plcModule;
     String plcAddress;
+    int telemetryClockMs;
+    boolean readOnly;
 
     TagItemValue[] telemetryTagItemValues;
     HashMap<String, TagItemValue> name2TagItemValue = new HashMap<String, TagItemValue>();
@@ -66,6 +68,9 @@ public class PlcConfig {
         plcModule = hcdConfig.getString("plcHcdConfig.module");
 
         plcAddress = plcModule + " " + plcIP;
+
+        telemetryClockMs = hcdConfig.getInt("plcHcdConfig.telemetryClockMs");
+        readOnly = hcdConfig.getBoolean("plcHcdConfig.readOnly");
     }
 
 
